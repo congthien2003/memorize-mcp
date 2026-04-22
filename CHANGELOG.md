@@ -9,30 +9,21 @@ và version tuân theo [Semantic Versioning](https://semver.org/spec/v2.0.0.html
 
 ### Added
 
-- **Pull Workflows**: Tool mới `pull_workflows` để pull folder `.workflows` về project của user.
-- Module `src/storage/workflows.ts` với functions:
-  - `pullWorkflows()`: Main function để pull workflows từ source.
-  - `listLocalWorkflows()`: List workflow files từ local source.
-  - `readLocalWorkflow()`: Đọc workflow content từ source.
-  - `writeWorkflowFile()`: Ghi workflow vào target project.
-- Workflow configurations trong `src/config.ts`:
-  - `workflows.sourceType`: Loại source (local/supabase/github).
-  - `workflows.sourceUrl`: URL của custom source (optional).
-  - `workflows.targetProjectDir`: Thư mục project đích.
-- Environment variables mới:
-  - `MEMORIZE_MCP_WORKFLOWS_SOURCE_TYPE`: Loại source (mặc định: "local").
-  - `MEMORIZE_MCP_WORKFLOWS_SOURCE`: Custom source URL (optional).
-  - `MEMORIZE_MCP_TARGET_PROJECT_DIR`: Thư mục project đích (required cho pull_workflows).
-- TypeScript types mới: `PullWorkflowsOptions`, `PullWorkflowsResult`, `PullWorkflowsStats`.
-- Documentation:
-  - `docs/version1.2.1/IMPLEMENTATION_PLAN.md`: Chi tiết implementation plan.
-  - `docs/version1.2.1/overview.md`: Tổng quan tính năng v1.2.1.
+- **Pull AGENT.md**: Tool mới `pull_agent_file` để pull file `AGENT.md` về project của user.
+- Module `src/storage/agent.ts` với function:
+  - `pullAgentFile()`: Main function để pull `AGENT.md` từ source local.
+- Agent configuration trong `src/config.ts`:
+  - `agent.targetProjectDir`: Thư mục project đích.
+- Environment variable:
+  - `MEMORIZE_MCP_TARGET_PROJECT_DIR`: Thư mục project đích cho `pull_agent_file`.
+- TypeScript types mới: `PullAgentFileOptions`, `PullAgentFileResult`.
+- File `AGENT.md` được bundle trong package để user pull trực tiếp về project.
 
 ### Changed
 
 - Server version bump: 1.2.0 → 1.2.1.
-- Startup log hiển thị thêm workflows configuration status.
-- README.md updated với tool `pull_workflows` documentation.
+- Startup log hiển thị thêm AGENT.md target directory status.
+- README.md updated với tool `pull_agent_file` documentation.
 
 ### Fixed
 

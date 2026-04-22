@@ -100,38 +100,24 @@ export interface SyncResult {
 }
 
 /**
- * v1.2.1: Workflow types
+ * v1.2.1: Agent file pull types
  */
 
 /**
- * Options for pulling workflows
+ * Options for pulling AGENT.md
  */
-export interface PullWorkflowsOptions {
+export interface PullAgentFileOptions {
 	targetDir?: string;
 	overwrite?: boolean;
-	filename?: string;
-	projectSlug?: string;
 }
 
 /**
- * Stats for pull workflows operation
+ * Result of pull AGENT.md operation
  */
-export interface PullWorkflowsStats {
-	created: number;
-	updated: number;
-	skipped: number;
-	failed: number;
-	total: number;
-}
-
-/**
- * Result of pull workflows operation
- */
-export interface PullWorkflowsResult {
+export interface PullAgentFileResult {
 	success: boolean;
-	targetDir: string;
-	stats: PullWorkflowsStats;
-	files: string[];
+	targetPath: string;
+	action: "created" | "updated" | "skipped";
 	message: string;
 	errors?: string[];
 }

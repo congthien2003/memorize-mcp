@@ -22,7 +22,7 @@ export {
 	getMemoryByFilename,
 } from "./supabase.js";
 export { syncFromCloud, decideSyncAction } from "./sync.js";
-export { pullWorkflows } from "./workflows.js";
+export { pullAgentFile } from "./agent.js";
 export type {
 	MemoryData,
 	SaveMemoryOptions,
@@ -33,9 +33,8 @@ export type {
 	SyncDecision,
 	SyncStats,
 	SyncResult,
-	PullWorkflowsOptions,
-	PullWorkflowsStats,
-	PullWorkflowsResult,
+	PullAgentFileOptions,
+	PullAgentFileResult,
 } from "./types.js";
 
 /**

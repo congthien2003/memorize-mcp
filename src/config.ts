@@ -18,10 +18,8 @@ export interface Config {
 		projectSlug?: string;
 	};
 
-	// v1.2.1: Workflows configuration
-	workflows: {
-		sourceType: "local" | "supabase" | "github";
-		sourceUrl?: string;
+	// v1.2.1: Agent file pull configuration
+	agent: {
 		targetProjectDir?: string;
 	};
 
@@ -42,9 +40,7 @@ export function getConfig(): Config {
 			projectSlug: env.MEMORIZE_MCP_PROJECT_SLUG,
 		},
 
-		workflows: {
-			sourceType: (env.MEMORIZE_MCP_WORKFLOWS_SOURCE_TYPE as any) || "local",
-			sourceUrl: env.MEMORIZE_MCP_WORKFLOWS_SOURCE,
+		agent: {
 			targetProjectDir: env.MEMORIZE_MCP_TARGET_PROJECT_DIR,
 		},
 

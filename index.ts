@@ -4,7 +4,7 @@ import {
 	CallToolRequestSchema,
 	ListToolsRequestSchema,
 } from "@modelcontextprotocol/sdk/types.js";
-import { saveMemory, syncFromCloud, pullWorkflows } from "./src/storage/index.js";
+import { saveMemory, syncFromCloud, pullAgentFile } from "./src/storage/index.js";
 import { getConfig } from "./src/config.js";
 
 const config = getConfig();
@@ -73,9 +73,9 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
 				},
 			},
 			{
-				name: "pull_workflows",
+				name: "pull_agent_file",
 				description:
-					"Pull folder .workflows từ cloud/source về folder project đã cấu hình trong env. Workflows chứa hướng dẫn cho AI agent.",
+					"Pull file AGENT.md từ source local của memorize-mcp về thư mục project đích.",
 				inputSchema: {
 					type: "object",
 					properties: {
@@ -87,12 +87,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
 						overwrite: {
 							type: "boolean",
 							description:
-								"(Optional) Ghi đè file nếu đã tồn tại. Mặc định: false",
-						},
-						filename: {
-							type: "string",
-							description:
-								"(Optional) Chỉ pull một workflow file cụ thể (vd: 'SAVE_MEMORY.md')",
+								"(Optional) Ghi đè AGENT.md nếu đã tồn tại. Mặc định: false",
 						},
 					},
 					required: [],
@@ -214,22 +209,19 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 		}
 	}
 
-	if (request.params.name === "pull_workflows") {
-		const { targetDir, overwrite, filename } = request.params
-			.arguments as any;
+	if (request.params.name === "pull_agent_file") {
+		const { targetDir, overwrite } = request.params.arguments as any;
 
-		console.log(`[${new Date().toISOString()}] Processing pull_workflows:`, {
+		console.log(`[${new Date().toISOString()}] Processing pull_agent_file:`, {
 			targetDir: targetDir || "(from env)",
 			overwrite: overwrite || false,
-			filename: filename || "(all files)",
 		});
 
 		try {
-			const result = await pullWorkflows(
+			const result = await pullAgentFile(
 				{
 					targetDir,
 					overwrite,
-					filename,
 				},
 				config
 			);
@@ -240,7 +232,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 			};
 		} catch (error: any) {
 			console.error(
-				`[${new Date().toISOString()}] ❌ Error in pull_workflows:`,
+				`[${new Date().toISOString()}] ❌ Error in pull_agent_file:`,
 				error
 			);
 			return {
@@ -275,8 +267,8 @@ console.log(
 	}`
 );
 console.log(
-	`📋 Workflows: ${config.workflows.sourceType} source ${
-		config.workflows.targetProjectDir ? "✓" : "(no target dir)"
+	`📋 AGENT.md target dir: ${
+		config.agent.targetProjectDir ? "Configured ✓" : "Not configured"
 	}`
 );
 console.log(`⏰ Started at: ${new Date().toLocaleString("vi-VN")}`);
