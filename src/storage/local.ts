@@ -119,18 +119,18 @@ export function rebuildIndex(memoryDir: string): void {
  * Migrate a v1 memory file (no `version` field) to the v2 schema.
  * The migrated object is returned in memory; callers may persist it.
  */
-function migrateV1ToV2(raw: Record<string, unknown>): MemoryData {
-	const rawContent = (raw.content as string) || "";
-	const timestamp = (raw.timestamp as string) || new Date().toISOString();
+function migrateV1ToV2(v1Data: Record<string, unknown>): MemoryData {
+	const rawContent = (v1Data.content as string) || "";
+	const timestamp = (v1Data.timestamp as string) || new Date().toISOString();
 
 	return {
 		version: 2,
-		filename: raw.filename as string,
-		topic: raw.topic as string,
+		filename: v1Data.filename as string,
+		topic: v1Data.topic as string,
 		tags: extractTags(rawContent),
 		timestamp,
 		contentHash: computeContentHash(rawContent),
-		createdFrom: raw.createdFrom as string | undefined,
+		createdFrom: v1Data.createdFrom as string | undefined,
 		updatedAt: timestamp,
 		rawContent,
 		sections: parseMarkdownToSections(rawContent),
