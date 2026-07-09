@@ -42,6 +42,46 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
 							description:
 								"(Optional) Slug của project để sync lên Supabase. Nếu không có sẽ dùng MEMORIZE_MCP_PROJECT_SLUG từ env.",
 						},
+						tags: {
+							type: "array",
+							items: { type: "string" },
+							description: "(Optional) Tags do agent tự sinh để dễ filter. Nếu không cung cấp sẽ tự động extract từ #hashtag trong content.",
+						},
+						decisions: {
+							type: "array",
+							items: {
+								type: "object",
+								properties: {
+									question: { type: "string", description: "Câu hỏi / vấn đề được đặt ra" },
+									answer: { type: "string", description: "Câu trả lời / quyết định của user" },
+									note: { type: "string", description: "(Optional) Ghi chú thêm" },
+									sectionId: { type: "string", description: "(Optional) ID của section liên quan" },
+								},
+								required: ["question", "answer"],
+							},
+							description: "(Optional) Danh sách các quyết định/question-answer pairs",
+						},
+						scope: {
+							type: "object",
+							properties: {
+								included_files: {
+									type: "array",
+									items: { type: "string" },
+									description: "Danh sách file đã sửa/tạo trong session này",
+								},
+								excluded_files: {
+									type: "array",
+									items: { type: "string" },
+									description: "Danh sách file cố tình không động tới",
+								},
+								excluded_reason: {
+									type: "string",
+									description: "(Optional) Lý do không động tới excluded_files",
+								},
+							},
+							required: ["included_files", "excluded_files"],
+							description: "(Optional) Phạm vi ảnh hưởng của session — file nào đụng tới, file nào không",
+						},
 					},
 					required: ["filename", "topic", "content"],
 				},
@@ -133,7 +173,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 	);
 
 	if (request.params.name === "save_memorize") {
-		const { filename, topic, content, projectSlug } = request.params
+		const { filename, topic, content, projectSlug, tags, decisions, scope } = request.params
 			.arguments as any;
 
 		console.log(`[${new Date().toISOString()}] Processing save_memorize:`, {
@@ -141,6 +181,8 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 			topic,
 			projectSlug: projectSlug || "(from env)",
 			contentLength: content?.length || 0,
+			decisionsCount: decisions?.length || 0,
+			hasScope: !!scope,
 		});
 
 		try {
@@ -149,6 +191,9 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 				topic,
 				content,
 				projectSlug,
+				tags,
+				decisions,
+				scope,
 			});
 
 			// Build response message
