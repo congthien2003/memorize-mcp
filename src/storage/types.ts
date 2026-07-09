@@ -6,6 +6,7 @@
  * A single parsed section from markdown content
  */
 export interface Section {
+	id: string;
 	heading: string;
 	level: number; // 0 = preamble (before first heading), 1-6 = heading level
 	body: string;
@@ -23,10 +24,31 @@ export interface HistoryEntry {
 }
 
 /**
- * Memory data structure (v2)
+ * A structured Q&A decision stored in memory
+ */
+export interface Decision {
+	question: string;
+	answer: string;
+	note?: string;
+	sectionId?: string;
+	createdAt: string;
+	updatedAt: string;
+}
+
+/**
+ * Phạm vi ảnh hưởng của session — file nào đụng tới, file nào không
+ */
+export interface Scope {
+	included_files: string[];
+	excluded_files: string[];
+	excluded_reason?: string;
+}
+
+/**
+ * Memory data structure (v3)
  */
 export interface MemoryData {
-	version: 2;
+	version: 3;
 	filename: string;
 	topic: string;
 	tags: string[];
@@ -36,6 +58,8 @@ export interface MemoryData {
 	updatedAt: string; // ISO string — last modification time
 	rawContent: string; // original markdown string
 	sections: Section[]; // parsed markdown sections
+	decisions: Decision[]; // structured Q&A decisions
+	scope?: Scope; // files affected in this session
 	history: HistoryEntry[]; // previous versions (newest-first, max 10)
 }
 
@@ -50,6 +74,9 @@ export interface SaveMemoryOptions {
 	timestamp?: string;
 	createdFrom?: string;
 	contentHash?: string; // pre-computed SHA-256 hash (set by saveMemory orchestrator)
+	tags?: string[]; // tags do agent tự sinh (nếu không cung cấp sẽ extract từ #hashtag trong content)
+	decisions?: Decision[]; // structured Q&A decisions
+	scope?: Scope; // files affected in this session
 }
 
 /**
