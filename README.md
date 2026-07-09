@@ -49,7 +49,7 @@ Khi chạy trực tiếp, bạn sẽ thấy log dạng:
 
 ```text
 ==================================================
-🚀 Memorize MCP Server v1.4.0 Started
+🚀 Memorize MCP Server v1.3.0 Started
 📁 Memory Directory: Z:\path\to\project\memorize
 ⏰ Started at: 09/07/2026, 14:30:00
 ==================================================
@@ -59,12 +59,12 @@ Khi chạy trực tiếp, bạn sẽ thấy log dạng:
 
 ```jsonc
 {
-	"mcpServers": {
-		"memorize-mcp": {
-			"command": "bun",
-			"args": ["run", "index.ts"]
-		}
-	}
+  "mcpServers": {
+    "memorize-mcp": {
+      "command": "bun",
+      "args": ["run", "index.ts"],
+    },
+  },
 }
 ```
 
@@ -84,38 +84,46 @@ Server cung cấp 3 tools:
 
 ```json
 {
-	"type": "object",
-	"properties": {
-		"filename": { "type": "string", "description": "Tên file (vd: summary_v1.json)" },
-		"topic": { "type": "string", "description": "Chủ đề chính của phiên làm việc" },
-		"content": { "type": "string", "description": "Nội dung tóm tắt chi tiết" },
-		"tags": {
-			"type": "array", "items": { "type": "string" },
-			"description": "(Optional) Tags do agent tự sinh"
-		},
-		"decisions": {
-			"type": "array", "items": {
-				"type": "object",
-				"properties": {
-					"question": { "type": "string" },
-					"answer": { "type": "string" },
-					"note": { "type": "string" },
-					"sectionId": { "type": "string" }
-				},
-				"required": ["question", "answer"]
-			}
-		},
-		"scope": {
-			"type": "object",
-			"properties": {
-				"included_files": { "type": "array", "items": { "type": "string" } },
-				"excluded_files": { "type": "array", "items": { "type": "string" } },
-				"excluded_reason": { "type": "string" }
-			},
-			"required": ["included_files", "excluded_files"]
-		}
-	},
-	"required": ["filename", "topic", "content"]
+  "type": "object",
+  "properties": {
+    "filename": {
+      "type": "string",
+      "description": "Tên file (vd: summary_v1.json)"
+    },
+    "topic": {
+      "type": "string",
+      "description": "Chủ đề chính của phiên làm việc"
+    },
+    "content": { "type": "string", "description": "Nội dung tóm tắt chi tiết" },
+    "tags": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "(Optional) Tags do agent tự sinh"
+    },
+    "decisions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "question": { "type": "string" },
+          "answer": { "type": "string" },
+          "note": { "type": "string" },
+          "sectionId": { "type": "string" }
+        },
+        "required": ["question", "answer"]
+      }
+    },
+    "scope": {
+      "type": "object",
+      "properties": {
+        "included_files": { "type": "array", "items": { "type": "string" } },
+        "excluded_files": { "type": "array", "items": { "type": "string" } },
+        "excluded_reason": { "type": "string" }
+      },
+      "required": ["included_files", "excluded_files"]
+    }
+  },
+  "required": ["filename", "topic", "content"]
 }
 ```
 
@@ -127,9 +135,9 @@ Server cung cấp 3 tools:
 
 ```json
 {
-	"topic": "Tên chủ đề",
-	"timestamp": "2026-01-05T14:23:45.000Z",
-	"content": "Nội dung tóm tắt chi tiết..."
+  "topic": "Tên chủ đề",
+  "timestamp": "2026-01-05T14:23:45.000Z",
+  "content": "Nội dung tóm tắt chi tiết..."
 }
 ```
 
@@ -153,18 +161,18 @@ Nếu có lỗi, server trả về nội dung text với mô tả lỗi và `isE
 
 ```json
 {
-	"type": "object",
-	"properties": {
-		"targetDir": {
-			"type": "string",
-			"description": "(Optional) Thư mục project đích. Mặc định: thư mục đang gọi MCP."
-		},
-		"overwrite": {
-			"type": "boolean",
-			"description": "(Optional) Ghi đè AGENT.md nếu đã tồn tại. Mặc định: false"
-		}
-	},
-	"required": []
+  "type": "object",
+  "properties": {
+    "targetDir": {
+      "type": "string",
+      "description": "(Optional) Thư mục project đích. Mặc định: thư mục đang gọi MCP."
+    },
+    "overwrite": {
+      "type": "boolean",
+      "description": "(Optional) Ghi đè AGENT.md nếu đã tồn tại. Mặc định: false"
+    }
+  },
+  "required": []
 }
 ```
 
@@ -196,13 +204,20 @@ Nếu có lỗi, server trả về nội dung text với mô tả lỗi và `isE
 
 ```json
 {
-	"type": "object",
-	"properties": {
-		"query": { "type": "string", "description": "(Optional) Từ khóa tìm kiếm" },
-		"tags": { "type": "array", "items": { "type": "string" }, "description": "(Optional) Lọc theo tags" },
-		"limit": { "type": "number", "description": "(Optional) Số lượng tối đa. Mặc định: 10" }
-	},
-	"required": []
+  "type": "object",
+  "properties": {
+    "query": { "type": "string", "description": "(Optional) Từ khóa tìm kiếm" },
+    "tags": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "(Optional) Lọc theo tags"
+    },
+    "limit": {
+      "type": "number",
+      "description": "(Optional) Số lượng tối đa. Mặc định: 10"
+    }
+  },
+  "required": []
 }
 ```
 
