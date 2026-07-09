@@ -63,6 +63,15 @@ function extractCodeLanguage(body: string): string | undefined {
 	return match?.[1];
 }
 
+function slugify(text: string): string {
+  return text
+    .toLowerCase()
+    .replace(/[^\w\s-]/g, "")
+    .replace(/\s+/g, "-")
+    .replace(/-+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
+
 /**
  * Parse a raw markdown string into an array of Section objects.
  *
@@ -81,11 +90,26 @@ export function parseMarkdownToSections(rawContent: string): Section[] {
 	let pendingLines: string[] = [];
 	let inCodeBlock = false;
 
+	const usedIds = new Set<string>();
+
+	function generateId(heading: string): string {
+		let id = heading ? slugify(heading) : "preamble";
+		if (!id) id = "section";
+		let deduped = id;
+		let counter = 2;
+		while (usedIds.has(deduped)) {
+			deduped = `${id}-${counter++}`;
+		}
+		usedIds.add(deduped);
+		return deduped;
+	}
+
 	function flush(): void {
 		const body = pendingLines.join("\n").trim();
 		if (pendingHeading !== null || body) {
 			const type = determineSectionType(body);
 			const section: Section = {
+				id: generateId(pendingHeading ?? ""),
 				heading: pendingHeading ?? "",
 				level: pendingLevel,
 				body,

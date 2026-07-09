@@ -18,9 +18,11 @@ import type {
 	MemoryIndex,
 	SearchMemorizeOptions,
 	SearchMemorizeResult,
+	Decision,
+	Section,
 } from "./types.js";
 
-const INDEX_FILENAME = "_index.json";
+const INDEX_FILENAME = "index.json";
 
 // ---------------------------------------------------------------------------
 // Directory helpers
@@ -112,30 +114,79 @@ export function rebuildIndex(memoryDir: string): void {
 }
 
 // ---------------------------------------------------------------------------
-// V1 → V2 migration
+// Decision merge helper
 // ---------------------------------------------------------------------------
 
-/**
- * Migrate a v1 memory file (no `version` field) to the v2 schema.
- * The migrated object is returned in memory; callers may persist it.
- */
-function migrateV1ToV2(v1Data: Record<string, unknown>): MemoryData {
-	const rawContent = (v1Data.content as string) || "";
-	const timestamp = (v1Data.timestamp as string) || new Date().toISOString();
+function mergeDecisions(
+	existing: Decision[],
+	incoming: Decision[]
+): Decision[] {
+	const map = new Map<string, Decision>();
+	for (const d of existing) {
+		map.set(d.question.toLowerCase(), d);
+	}
+	const now = new Date().toISOString();
+	for (const d of incoming) {
+		const key = d.question.toLowerCase();
+		if (map.has(key)) {
+			const prev = map.get(key)!;
+			map.set(key, {
+				...prev,
+				answer: d.answer,
+				note: d.note ?? prev.note,
+				sectionId: d.sectionId ?? prev.sectionId,
+				updatedAt: now,
+			});
+		} else {
+			map.set(key, {
+				question: d.question,
+				answer: d.answer,
+				note: d.note,
+				sectionId: d.sectionId,
+				createdAt: d.createdAt || now,
+				updatedAt: now,
+			});
+		}
+	}
+	return Array.from(map.values());
+}
 
-	return {
-		version: 2,
-		filename: v1Data.filename as string,
-		topic: v1Data.topic as string,
-		tags: extractTags(rawContent),
-		timestamp,
-		contentHash: computeContentHash(rawContent),
-		createdFrom: v1Data.createdFrom as string | undefined,
-		updatedAt: timestamp,
-		rawContent,
-		sections: parseMarkdownToSections(rawContent),
-		history: [],
+// ---------------------------------------------------------------------------
+// V1/V2 → V3 migration
+// ---------------------------------------------------------------------------
+
+function migrateToLatest(raw: Record<string, unknown>): MemoryData {
+	const filename = raw.filename as string;
+	const topic = raw.topic as string;
+	const rawContent = (raw.content as string) || "";
+
+	const memo: MemoryData = {
+		version: 3,
+		filename,
+		topic,
+		tags: (raw.tags as string[]) || extractTags(rawContent),
+		timestamp: (raw.timestamp as string) || new Date().toISOString(),
+		contentHash: (raw.contentHash as string) || computeContentHash(rawContent),
+		createdFrom: raw.createdFrom as string | undefined,
+		updatedAt: (raw.updatedAt as string) || (raw.timestamp as string) || new Date().toISOString(),
+		sections: [],
+		decisions: (raw.decisions as Decision[]) || [],
+		history: (raw.history as HistoryEntry[]) || [],
 	};
+
+	if (raw.sections) {
+		const rawSections = raw.sections as any[];
+		const version = (raw.version as number) || 1;
+		if (version < 3) {
+			memo.sections = parseMarkdownToSections(rawContent);
+		} else {
+			memo.sections = rawSections as Section[];
+		}
+	} else {
+		memo.sections = parseMarkdownToSections(rawContent);
+	}
+
+	return memo;
 }
 
 // ---------------------------------------------------------------------------
@@ -179,15 +230,13 @@ export function readLocalMemory(
 			return null;
 		}
 
-		// V1 → V2 lazy migration
-		if (!raw.version) {
+		const version = (raw.version as number) || 1;
+		if (version < 3) {
 			console.log(
-				`[${new Date().toISOString()}] 🔄 Migrating v1 → v2: ${filename}`
+				`[${new Date().toISOString()}] 🔄 Migrating v${version} → v3: ${filename}`
 			);
-			const migrated = migrateV1ToV2(raw);
-			// Persist the migrated file
+			const migrated = migrateToLatest(raw);
 			fs.writeFileSync(filePath, JSON.stringify(migrated, null, 2), "utf8");
-			// Update index entry
 			updateIndex(memoryDir, {
 				filename: migrated.filename,
 				topic: migrated.topic,
@@ -257,7 +306,7 @@ export function saveLocalMemory(
 	options: SaveMemoryOptions,
 	memoryDir: string
 ): string {
-	const { filename, topic, content, timestamp, createdFrom, contentHash } =
+	const { filename, topic, content, timestamp, createdFrom, contentHash, tags, scope } =
 		options;
 
 	ensureDirectoryExists(memoryDir);
@@ -266,7 +315,7 @@ export function saveLocalMemory(
 	const now = new Date().toISOString();
 	const newHash = contentHash || computeContentHash(content);
 
-	// Read existing file (if any) and handle history / dedup
+	// Read existing file (if any) and handle history / dedup / decisions
 	let history: HistoryEntry[] = [];
 	let originalTimestamp = timestamp || now;
 
@@ -294,17 +343,26 @@ export function saveLocalMemory(
 		].slice(0, MAX_HISTORY_ENTRIES);
 	}
 
+	// Merge decisions (dedup by question)
+	let decisions: Decision[] = options.decisions || [];
+	if (existing && decisions.length > 0) {
+		decisions = mergeDecisions(existing.decisions, decisions);
+	} else if (existing) {
+		decisions = existing.decisions;
+	}
+
 	const dataToSave: MemoryData = {
-		version: 2,
+		version: 3,
 		filename,
 		topic,
-		tags: extractTags(content),
+		tags: tags || extractTags(content),
 		timestamp: originalTimestamp,
 		contentHash: newHash,
 		createdFrom,
 		updatedAt: now,
-		rawContent: content,
 		sections: parseMarkdownToSections(content),
+		decisions,
+		scope,
 		history,
 	};
 

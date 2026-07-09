@@ -6,6 +6,7 @@
  * A single parsed section from markdown content
  */
 export interface Section {
+	id: string;
 	heading: string;
 	level: number; // 0 = preamble (before first heading), 1-6 = heading level
 	body: string;
@@ -23,19 +24,41 @@ export interface HistoryEntry {
 }
 
 /**
- * Memory data structure (v2)
+ * A structured Q&A decision stored in memory
+ */
+export interface Decision {
+	question: string;
+	answer: string;
+	note?: string;
+	sectionId?: string;
+	createdAt: string;
+	updatedAt: string;
+}
+
+/**
+ * Phạm vi ảnh hưởng của session — file nào đụng tới, file nào không
+ */
+export interface Scope {
+	included_files: string[];
+	excluded_files: string[];
+	excluded_reason?: string;
+}
+
+/**
+ * Memory data structure (v3)
  */
 export interface MemoryData {
-	version: 2;
+	version: 3;
 	filename: string;
 	topic: string;
 	tags: string[];
 	timestamp: string; // ISO string — original creation time
-	contentHash: string; // SHA-256 of rawContent
+	contentHash: string; // SHA-256 of original content
 	createdFrom?: string; // Machine name or user info
 	updatedAt: string; // ISO string — last modification time
-	rawContent: string; // original markdown string
 	sections: Section[]; // parsed markdown sections
+	decisions: Decision[]; // structured Q&A decisions
+	scope?: Scope; // files affected in this session
 	history: HistoryEntry[]; // previous versions (newest-first, max 10)
 }
 
@@ -46,10 +69,12 @@ export interface SaveMemoryOptions {
 	filename: string;
 	topic: string;
 	content: string; // raw markdown
-	projectSlug?: string;
 	timestamp?: string;
 	createdFrom?: string;
 	contentHash?: string; // pre-computed SHA-256 hash (set by saveMemory orchestrator)
+	tags?: string[]; // tags do agent tự sinh (nếu không cung cấp sẽ extract từ #hashtag trong content)
+	decisions?: Decision[]; // structured Q&A decisions
+	scope?: Scope; // files affected in this session
 }
 
 /**
@@ -57,79 +82,7 @@ export interface SaveMemoryOptions {
  */
 export interface SaveResult {
 	localPath: string;
-	cloudSynced: boolean;
-	cloudError?: string;
 }
-
-/**
- * Project information from Supabase
- */
-export interface Project {
-	id: string;
-	name: string;
-	slug: string;
-	created_at: string;
-}
-
-/**
- * Memory record in Supabase
- */
-export interface MemoryRecord {
-	id: string;
-	project_id: string;
-	filename: string;
-	topic: string;
-	content: string;
-	timestamp: string;
-	created_at: string;
-	created_from?: string;
-	content_hash?: string; // SHA-256 of content
-	updated_at?: string; // ISO string — last upsert time
-}
-
-/**
- * Options for syncing memories from cloud to local
- */
-export interface SyncOptions {
-	projectSlug?: string;
-	overwrite?: boolean; // Default: true
-	filename?: string; // Optional: sync single file only
-}
-
-/**
- * Sync action decision
- */
-export type SyncDecision = {
-	action: "create" | "update" | "skip";
-	reason: string;
-};
-
-/**
- * Stats for sync operation
- */
-export interface SyncStats {
-	created: number;
-	updated: number;
-	skipped: number;
-	failed: number;
-	total: number;
-}
-
-/**
- * Result of sync operation
- */
-export interface SyncResult {
-	success: boolean;
-	stats: SyncStats;
-	memoryDir: string;
-	projectSlug: string;
-	errors?: string[];
-	message: string;
-}
-
-/**
- * v1.2.1: Agent file pull types
- */
 
 /**
  * Options for pulling AGENT.md
