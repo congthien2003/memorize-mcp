@@ -1,7 +1,3 @@
-/**
- * Agent module: Handle pulling AGENT.md from source to target project
- */
-import type { Config } from "../config.js";
 import * as fs from "fs/promises";
 import * as path from "path";
 import { fileURLToPath } from "url";
@@ -26,29 +22,13 @@ async function fileExists(filePath: string): Promise<boolean> {
 
 async function readLocalAgentFile(): Promise<string> {
 	const filePath = getLocalAgentFilePath();
-	try {
-		return await fs.readFile(filePath, "utf-8");
-	} catch (error: any) {
-		throw new Error(`Failed to read ${AGENT_FILENAME}: ${error.message}`);
-	}
+	return await fs.readFile(filePath, "utf-8");
 }
 
 export async function pullAgentFile(
-	options: PullAgentFileOptions,
-	config: Config
+	options: PullAgentFileOptions
 ): Promise<PullAgentFileResult> {
-	const targetDir = options.targetDir || config.agent.targetProjectDir || "";
-
-	if (!targetDir) {
-		return {
-			success: false,
-			targetPath: "",
-			action: "skipped",
-			message:
-				"Target directory not configured. Set MEMORIZE_MCP_TARGET_PROJECT_DIR or provide targetDir parameter.",
-			errors: ["Target directory not configured"],
-		};
-	}
+	const targetDir = options.targetDir || process.cwd();
 
 	const targetExists = await fileExists(targetDir);
 	if (!targetExists) {
@@ -73,27 +53,14 @@ export async function pullAgentFile(
 		};
 	}
 
-	try {
-		const content = await readLocalAgentFile();
-		await fs.writeFile(targetPath, content, "utf-8");
+	const content = await readLocalAgentFile();
+	await fs.writeFile(targetPath, content, "utf-8");
+	const action = targetFileExists ? "updated" : "created";
 
-		const action = targetFileExists ? "updated" : "created";
-		const icon = action === "updated" ? "🔄" : "📥";
-		const actionText = action === "updated" ? "updated" : "created";
-
-		return {
-			success: true,
-			targetPath,
-			action,
-			message: `✅ Pull AGENT.md completed!\n${icon} ${AGENT_FILENAME} ${actionText}.\n📁 Target: ${targetPath}`,
-		};
-	} catch (error: any) {
-		return {
-			success: false,
-			targetPath,
-			action: "skipped",
-			message: `Error pulling ${AGENT_FILENAME}: ${error.message}`,
-			errors: [error.message],
-		};
-	}
+	return {
+		success: true,
+		targetPath,
+		action,
+		message: `✅ ${AGENT_FILENAME} ${action}.\n📁 Target: ${targetPath}`,
+	};
 }

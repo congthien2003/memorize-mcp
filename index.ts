@@ -4,24 +4,22 @@ import {
 	CallToolRequestSchema,
 	ListToolsRequestSchema,
 } from "@modelcontextprotocol/sdk/types.js";
-import { saveMemory, syncFromCloud, pullAgentFile, searchMemories } from "./src/storage/index.js";
-import { getConfig } from "./src/config.js";
-
-const config = getConfig();
+import { saveMemory, searchMemories } from "./src/storage/index.js";
+import { pullAgentFile } from "./src/storage/agent.js";
+import { getMemoryDir, getProjectRoot } from "./src/dirs.js";
 
 const server = new Server(
-	{ name: "memorize-mcp-server", version: "1.3.0" },
+	{ name: "memorize-mcp-server", version: "1.4.0" },
 	{ capabilities: { tools: {} } }
 );
 
-// 1. Khai báo Tool
 server.setRequestHandler(ListToolsRequestSchema, async () => {
 	return {
 		tools: [
 			{
 				name: "save_memorize",
 				description:
-					"Lưu bản tóm tắt nội dung công việc vào file local dưới dạng JSON (có thể sync lên Supabase Cloud)",
+					"Lưu bản tóm tắt nội dung công việc vào file local dưới dạng JSON",
 				inputSchema: {
 					type: "object",
 					properties: {
@@ -36,11 +34,6 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
 						content: {
 							type: "string",
 							description: "Nội dung tóm tắt chi tiết",
-						},
-						projectSlug: {
-							type: "string",
-							description:
-								"(Optional) Slug của project để sync lên Supabase. Nếu không có sẽ dùng MEMORIZE_MCP_PROJECT_SLUG từ env.",
 						},
 						tags: {
 							type: "array",
@@ -87,32 +80,6 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
 				},
 			},
 			{
-				name: "sync_memorize",
-				description:
-					"Đồng bộ memories từ Supabase Cloud về local storage. Kiểm tra timestamp và chỉ cập nhật file nào mới hơn trên cloud.",
-				inputSchema: {
-					type: "object",
-					properties: {
-						projectSlug: {
-							type: "string",
-							description:
-								"(Optional) Slug của project để sync. Nếu không có sẽ dùng MEMORIZE_MCP_PROJECT_SLUG từ env.",
-						},
-						overwrite: {
-							type: "boolean",
-							description:
-								"(Optional) Bắt buộc ghi đè tất cả file local, bỏ qua kiểm tra timestamp. Mặc định: false",
-						},
-						filename: {
-							type: "string",
-							description:
-								"(Optional) Chỉ sync file cụ thể thay vì tất cả memories",
-						},
-					},
-					required: [],
-				},
-			},
-			{
 				name: "pull_agent_file",
 				description:
 					"Pull file AGENT.md từ source local của memorize-mcp về thư mục project đích.",
@@ -122,7 +89,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
 						targetDir: {
 							type: "string",
 							description:
-								"(Optional) Thư mục project đích. Nếu không có sẽ dùng MEMORIZE_MCP_TARGET_PROJECT_DIR từ env.",
+								"(Optional) Thư mục project đích. Mặc định: thư mục đang gọi MCP.",
 						},
 						overwrite: {
 							type: "boolean",
@@ -136,7 +103,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
 			{
 				name: "search_memorize",
 				description:
-					"Tìm kiếm memories theo từ khóa, tags, hoặc topic. Sử dụng _index.json để tìm kiếm nhanh mà không cần đọc từng file.",
+					"Tìm kiếm memories theo từ khóa, tags, hoặc topic. Sử dụng index.json để tìm kiếm nhanh mà không cần đọc từng file.",
 				inputSchema: {
 					type: "object",
 					properties: {
@@ -164,7 +131,6 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
 	};
 });
 
-// 2. Xử lý lưu file
 server.setRequestHandler(CallToolRequestSchema, async (request) => {
 	console.log(
 		`[${new Date().toISOString()}] Received tool request: ${
@@ -173,13 +139,12 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 	);
 
 	if (request.params.name === "save_memorize") {
-		const { filename, topic, content, projectSlug, tags, decisions, scope } = request.params
+		const { filename, topic, content, tags, decisions, scope } = request.params
 			.arguments as any;
 
 		console.log(`[${new Date().toISOString()}] Processing save_memorize:`, {
 			filename,
 			topic,
-			projectSlug: projectSlug || "(from env)",
 			contentLength: content?.length || 0,
 			decisionsCount: decisions?.length || 0,
 			hasScope: !!scope,
@@ -190,25 +155,13 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 				filename,
 				topic,
 				content,
-				projectSlug,
 				tags,
 				decisions,
 				scope,
 			});
 
-			// Build response message
-			let message = `✅ Đã lưu tóm tắt vào: ${result.localPath}`;
-
-			if (result.cloudSynced) {
-				message += `\n☁️ Cloud sync: Thành công`;
-			} else if (result.cloudError) {
-				message += `\n⚠️ Cloud sync: Thất bại (${result.cloudError})`;
-			} else {
-				message += `\n📍 Cloud sync: Không được cấu hình`;
-			}
-
 			return {
-				content: [{ type: "text", text: message }],
+				content: [{ type: "text", text: `✅ Đã lưu tóm tắt vào: ${result.localPath}` }],
 			};
 		} catch (error: any) {
 			console.error(
@@ -227,76 +180,19 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 		}
 	}
 
-	if (request.params.name === "sync_memorize") {
-		const { projectSlug, overwrite, filename } = request.params
-			.arguments as any;
-
-		console.log(`[${new Date().toISOString()}] Processing sync_memorize:`, {
-			projectSlug: projectSlug || "(from env)",
-			overwrite: overwrite || false,
-			filename: filename || "(all files)",
-		});
-
-		try {
-			const result = await syncFromCloud({
-				projectSlug,
-				overwrite,
-				filename,
-			});
-
-			// Build response message
-			let message = result.success ? "✅ " : "❌ ";
-			message += result.message;
-
-			if (result.stats) {
-				message += `\n\n📊 Statistics:`;
-				if (result.stats.created > 0)
-					message += `\n  ➕ Created: ${result.stats.created}`;
-				if (result.stats.updated > 0)
-					message += `\n  🔄 Updated: ${result.stats.updated}`;
-				if (result.stats.skipped > 0)
-					message += `\n  ⏭️  Skipped: ${result.stats.skipped}`;
-				if (result.stats.failed > 0)
-					message += `\n  ❌ Failed: ${result.stats.failed}`;
-			}
-
-			return {
-				content: [{ type: "text", text: message }],
-				isError: !result.success,
-			};
-		} catch (error: any) {
-			console.error(
-				`[${new Date().toISOString()}] ❌ Error in sync_memorize:`,
-				error
-			);
-			return {
-				content: [
-					{
-						type: "text",
-						text: `❌ Lỗi: ${error.message || String(error)}`,
-					},
-				],
-				isError: true,
-			};
-		}
-	}
-
 	if (request.params.name === "pull_agent_file") {
 		const { targetDir, overwrite } = request.params.arguments as any;
 
 		console.log(`[${new Date().toISOString()}] Processing pull_agent_file:`, {
-			targetDir: targetDir || "(from env)",
+			targetDir: targetDir || "(default: CWD)",
 			overwrite: overwrite || false,
 		});
 
 		try {
-			const result = await pullAgentFile(
-				{
-					targetDir,
-					overwrite,
-				},
-				config
-			);
+			const result = await pullAgentFile({
+				targetDir,
+				overwrite,
+			});
 
 			return {
 				content: [{ type: "text", text: result.message }],
@@ -321,6 +217,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
 	if (request.params.name === "search_memorize") {
 		const { query, tags, limit } = request.params.arguments as any;
+		const memoryDir = getMemoryDir();
 
 		console.log(`[${new Date().toISOString()}] Processing search_memorize:`, {
 			query: query || "(none)",
@@ -329,7 +226,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 		});
 
 		try {
-			const result = searchMemories({ query, tags, limit }, config.memoryDir);
+			const result = searchMemories({ query, tags, limit }, memoryDir);
 
 			let message = result.message;
 			if (result.results.length > 0) {
@@ -376,21 +273,17 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 	throw new Error("Tool not found");
 });
 
+import { ensureDirectoryExists } from "./src/storage/local.js";
+
 const transport = new StdioServerTransport();
 await server.connect(transport);
 
+const memoryDir = getMemoryDir();
+ensureDirectoryExists(memoryDir);
+
 console.log("=".repeat(50));
-console.log("🚀 Memorize MCP Server v1.3.0 Started");
-console.log(`📁 Memory Directory: ${config.memoryDir}`);
-console.log(
-	`☁️  Supabase: ${
-		config.supabase.url ? "Configured ✓" : "Not configured (local-only)"
-	}`
-);
-console.log(
-	`📋 AGENT.md target dir: ${
-		config.agent.targetProjectDir ? "Configured ✓" : "Not configured"
-	}`
-);
+console.log("🚀 Memorize MCP Server v1.4.0 Started");
+console.log(`📂 Project Root: ${getProjectRoot()}`);
+console.log(`📁 Memory Dir:   ${memoryDir}`);
 console.log(`⏰ Started at: ${new Date().toLocaleString("vi-VN")}`);
 console.log("=".repeat(50));

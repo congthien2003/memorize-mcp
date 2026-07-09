@@ -22,7 +22,7 @@ import type {
 	Section,
 } from "./types.js";
 
-const INDEX_FILENAME = "_index.json";
+const INDEX_FILENAME = "index.json";
 
 // ---------------------------------------------------------------------------
 // Directory helpers
@@ -169,7 +169,6 @@ function migrateToLatest(raw: Record<string, unknown>): MemoryData {
 		contentHash: (raw.contentHash as string) || computeContentHash(rawContent),
 		createdFrom: raw.createdFrom as string | undefined,
 		updatedAt: (raw.updatedAt as string) || (raw.timestamp as string) || new Date().toISOString(),
-		rawContent,
 		sections: [],
 		decisions: (raw.decisions as Decision[]) || [],
 		history: (raw.history as HistoryEntry[]) || [],
@@ -361,7 +360,6 @@ export function saveLocalMemory(
 		contentHash: newHash,
 		createdFrom,
 		updatedAt: now,
-		rawContent: content,
 		sections: parseMarkdownToSections(content),
 		decisions,
 		scope,
