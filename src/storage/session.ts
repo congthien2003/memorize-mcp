@@ -27,8 +27,9 @@ function getSessionPath(memoryDir: string): string {
 	return path.join(memoryDir, SESSION_FILENAME);
 }
 
-function writeSession(filePath: string, content: string): void {
-	if (Buffer.byteLength(content, "utf8") > MAX_SESSION_BYTES) {
+function writeSession(filePath: string, content: string): number {
+	const bytes = Buffer.byteLength(content, "utf8");
+	if (bytes > MAX_SESSION_BYTES) {
 		throw new Error(
 			"Session memory exceeds 64 KiB. Replace it with a concise snapshot before saving more.",
 		);
@@ -37,6 +38,7 @@ function writeSession(filePath: string, content: string): void {
 	const temporaryPath = `${filePath}.${crypto.randomUUID()}.tmp`;
 	fs.writeFileSync(temporaryPath, content, "utf8");
 	fs.renameSync(temporaryPath, filePath);
+	return bytes;
 }
 
 function readSession(memoryDir: string): string | null {
@@ -78,7 +80,7 @@ export function startSession(memoryDir: string, goal?: string): string {
 export function saveSessionMemory(
 	memoryDir: string,
 	options: { content: string; mode?: SaveMode },
-): string {
+): { filePath: string; bytes: number; nearLimit: boolean } {
 	const content = options.content.trim();
 	if (!content) {
 		throw new Error("content must be a non-empty string.");
@@ -101,8 +103,12 @@ export function saveSessionMemory(
 			: `${splitHeader(currentSession).header}${HEADER_SEPARATOR}\n## Snapshot — ${now}\n\n${content}\n`;
 
 	const filePath = getSessionPath(memoryDir);
-	writeSession(filePath, nextContent);
-	return filePath;
+	const bytes = writeSession(filePath, nextContent);
+	return {
+		filePath,
+		bytes,
+		nearLimit: bytes >= MAX_SESSION_BYTES * 0.8,
+	};
 }
 
 export function searchSessionMemory(
@@ -128,9 +134,14 @@ export function searchSessionMemory(
 	}
 
 	const { body } = splitHeader(content);
+	const terms = query.toLowerCase().split(/\s+/);
 	const matches = body
 		.split(/(?=^##\s+)/m)
-		.filter((section) => section.toLowerCase().includes(query.toLowerCase()))
+		.filter((section) => {
+			const normalizedSection = section.toLowerCase();
+			return terms.every((term) => normalizedSection.includes(term));
+		})
+		.reverse()
 		.slice(0, limit);
 
 	return {
