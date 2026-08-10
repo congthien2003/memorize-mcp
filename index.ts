@@ -7,6 +7,7 @@ import {
 } from "@modelcontextprotocol/sdk/types.js";
 import { getMemoryDir, getProjectRoot } from "./src/dirs.js";
 import {
+	MAX_SESSION_BYTES,
 	searchSessionMemory,
 	saveSessionMemory,
 	startSession,
@@ -14,7 +15,7 @@ import {
 import type { SaveMode } from "./src/storage/index.js";
 
 const server = new Server(
-	{ name: "memorize-mcp-server", version: "2.0.0" },
+	{ name: "memorize-mcp-server", version: "2.0.1" },
 	{ capabilities: { tools: {} } },
 );
 
@@ -53,7 +54,8 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
 		{
 			name: "start_session",
 			description:
-				"Bắt đầu phiên memory mới bằng cách thay thế .memorize/MEMORY.md hiện tại.",
+				"Bắt đầu phiên memory mới và thay thế vĩnh viễn .memorize/MEMORY.md hiện tại.",
+			annotations: { destructiveHint: true },
 			inputSchema: {
 				type: "object",
 				properties: {
@@ -117,11 +119,15 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 				return text(`Started session memory: ${filePath}`);
 			}
 			case "save_memorize": {
-				const filePath = saveSessionMemory(memoryDir, {
+				const result = saveSessionMemory(memoryDir, {
 					content: getRequiredString(arguments_, "content"),
 					mode: getOptionalString(arguments_, "mode") as SaveMode | undefined,
 				});
-				return text(`Saved session memory: ${filePath}`);
+				const usage = `${(result.bytes / 1024).toFixed(1)} KiB / ${MAX_SESSION_BYTES / 1024} KiB`;
+				const warning = result.nearLimit
+					? ' Memory is nearly full; use mode: "replace" with a concise snapshot.'
+					: "";
+				return text(`Saved session memory: ${result.filePath} (${usage}).${warning}`);
 			}
 			case "search_memorize": {
 				const limit = arguments_.limit;
@@ -151,7 +157,7 @@ const transport = new StdioServerTransport();
 await server.connect(transport);
 
 console.log("=".repeat(50));
-console.log("Memorize MCP Server v2.0.0 started");
+console.log("Memorize MCP Server v2.0.1 started");
 console.log(`Project root: ${getProjectRoot()}`);
 console.log(`Session memory: ${memoryDir}`);
 console.log("=".repeat(50));

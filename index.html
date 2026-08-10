@@ -41,7 +41,7 @@
       <section class="grid-paper border-b border-[var(--rule)]">
         <div class="mx-auto max-w-6xl px-6 py-5 lg:px-8">
           <nav class="flex items-center justify-between text-xs uppercase eyebrow" aria-label="Primary navigation">
-            <a href="#top" class="font-medium text-[var(--moss)]">memorize-mcp / v2.0.0</a>
+            <a href="#top" class="font-medium text-[var(--moss)]">memorize-mcp / v2.0.1</a>
             <a class="border-b border-[var(--ink)] pb-1 hover:text-[var(--moss)]" href="https://github.com/congthien2003/memorize-mcp">GitHub ↗</a>
           </nav>
 
@@ -77,7 +77,7 @@
           <article class="reveal border-t border-[var(--rule)] pt-8 md:border-l md:border-t-0 md:pl-8 md:pt-0">
             <p class="text-xs uppercase eyebrow text-[var(--moss)]">03 / Bounded &amp; searchable</p>
             <h2 class="display mt-4 text-3xl">64 KiB. Direct search.</h2>
-            <p class="mt-4 text-sm leading-6">Case-insensitive section search keeps retrieval small. The cap keeps the memory useful instead of sprawling.</p>
+            <p class="mt-4 text-sm leading-6">Multi-word, case-insensitive section search returns the newest matches first. The cap keeps the memory useful instead of sprawling.</p>
           </article>
         </div>
       </section>
@@ -97,9 +97,9 @@
                 <tr><th class="py-4 font-normal">Tool</th><th class="py-4 font-normal">Does</th><th class="py-4 font-normal">Use it when</th></tr>
               </thead>
               <tbody class="divide-y divide-[#526159]">
-                <tr><td class="py-5 font-medium text-[#f3bd69]">start_session</td><td class="py-5 pr-8">Creates a fresh active session.</td><td class="py-5 text-[#d6d1c5]">Beginning a new work session.</td></tr>
-                <tr><td class="py-5 font-medium text-[#f3bd69]">save_memorize</td><td class="py-5 pr-8">Appends an update or replaces it with a compact snapshot.</td><td class="py-5 text-[#d6d1c5]">Recording progress or handing work off.</td></tr>
-                <tr><td class="py-5 font-medium text-[#f3bd69]">search_memorize</td><td class="py-5 pr-8">Loads all context or finds matching Markdown sections.</td><td class="py-5 text-[#d6d1c5]">Recovering the relevant part of a session.</td></tr>
+                <tr><td class="py-5 font-medium text-[#f3bd69]">start_session</td><td class="py-5 pr-8">Creates a fresh active session, replacing the previous one.</td><td class="py-5 text-[#d6d1c5]">Beginning a new work session.</td></tr>
+                <tr><td class="py-5 font-medium text-[#f3bd69]">save_memorize</td><td class="py-5 pr-8">Appends an update or replaces it with a compact snapshot, reporting current capacity.</td><td class="py-5 text-[#d6d1c5]">Recording progress or handing work off.</td></tr>
+                <tr><td class="py-5 font-medium text-[#f3bd69]">search_memorize</td><td class="py-5 pr-8">Loads all context or finds the newest sections matching every query term.</td><td class="py-5 text-[#d6d1c5]">Recovering the relevant part of a session.</td></tr>
               </tbody>
             </table>
           </div>

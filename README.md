@@ -6,7 +6,7 @@ An MCP server that stores one Markdown memory for the current workspace session.
 - `start_session` replaces the previous session. There is no history, cloud sync, database, tag, or index.
 - The file is capped at 64 KiB, so agents can read and search it directly.
 
-**Version:** `2.0.0`
+**Version:** `2.0.1`
 
 ## Set up Codex with one prompt
 
@@ -64,6 +64,7 @@ Creates a new session by replacing `.memorize/MEMORY.md`.
 ```
 
 `goal` is optional. The new file includes a session ID and start time.
+Calling this tool permanently replaces the active session. It is advertised to MCP clients with `destructiveHint: true`.
 
 ### `save_memorize`
 
@@ -79,6 +80,7 @@ Writes Markdown to the active session. Call `start_session` first.
 - `append` is the default. It adds a timestamped `## Update` section.
 - `replace` keeps the session header and replaces all earlier updates with a new `## Snapshot` section.
 - Writes are rejected when the file would exceed 64 KiB. Use `replace` with a shorter snapshot.
+- Successful saves report current usage as `used KiB / 64 KiB`. At 80% capacity or above, the response recommends a concise `replace` snapshot.
 
 ### `search_memorize`
 
@@ -92,5 +94,5 @@ Reads or searches `.memorize/MEMORY.md`.
 ```
 
 - Without `query`, it returns the complete session memory for agent context.
-- With `query`, it searches case-insensitively within `##` sections and returns up to three sections by default.
+- With `query`, whitespace-separated terms are matched case-insensitively with AND semantics within `##` sections. The newest matches are returned first, up to three sections by default.
 - When no active session or match exists, it returns an explanatory message instead of an error.

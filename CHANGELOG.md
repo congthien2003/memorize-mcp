@@ -5,6 +5,41 @@ Tất cả thay đổi quan trọng của dự án này sẽ được ghi lại 
 Định dạng dựa theo [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 và version tuân theo [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.0.1] - 2026-08-10
+
+### Added
+
+- `save_memorize` trả về dung lượng đã dùng trên giới hạn 64 KiB và khuyến nghị dùng `replace` khi memory đạt từ 80%.
+- `start_session` khai báo `destructiveHint` để MCP client nhận biết thao tác sẽ thay thế session hiện tại.
+
+### Changed
+
+- `search_memorize` hỗ trợ nhiều từ khóa theo điều kiện AND, không phân biệt hoa thường và trả kết quả mới nhất trước.
+- Đồng bộ version và mô tả tính năng trong README, metadata server và landing page.
+
+## [2.0.0] - 2026-08-10
+
+> **Breaking:** Version 2.0 thay thế storage và tool contract của v1.x, không cung cấp migration layer cho dữ liệu cũ.
+
+### Added
+
+- Một session memory duy nhất tại `.memorize/MEMORY.md` trong workspace hiện tại.
+- Ba MCP tool: `start_session`, `save_memorize` và `search_memorize`.
+- Hai chế độ lưu: `append` để thêm update và `replace` để tạo snapshot cô đọng.
+- Giới hạn file 64 KiB, ghi file atomically và tìm kiếm theo Markdown section.
+- Test cho vòng đời session và landing page giới thiệu workflow local-first.
+
+### Changed
+
+- Đơn giản hóa storage từ nhiều file JSON thành một file Markdown chỉ đại diện cho phiên làm việc hiện tại.
+- Project root mặc định lấy từ working directory của MCP server thay vì yêu cầu đường dẫn memory cố định.
+
+### Removed
+
+- Supabase backend, cloud sync và dependency `@supabase/supabase-js`.
+- History, tags, index và cơ chế quản lý nhiều memory file.
+- Tool `pull_agent_file` cùng các module storage/configuration dành cho kiến trúc v1.x.
+
 ## [1.2.1] - 2026-01-19
 
 ### Added
