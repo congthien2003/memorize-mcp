@@ -1,240 +1,96 @@
-# memorize-mcp (Memory MCP Server)
+# memorize-mcp
 
-## Tóm tắt nhanh
+An MCP server that stores one Markdown memory for the current workspace session.
 
-- MCP server đơn giản dùng để lưu trữ bản tóm tắt nội dung công việc ra file JSON trên máy local.
-- Cung cấp 3 tools:
-  - `save_memorize`: Lưu memory mới
-  - `pull_agent_file`: Pull file `AGENT.md` về project
-  - `search_memorize`: Tìm kiếm memories
-- Thư mục lưu trữ mặc định: `./memorize/` (tính từ thư mục gọi MCP).
+- Single file: `.memorize/MEMORY.md`.
+- `start_session` replaces the previous session. There is no history, cloud sync, database, tag, or index.
+- The file is capped at 64 KiB, so agents can read and search it directly.
 
-**Phiên bản hiện tại**: `1.4.0`
+**Version:** `2.0.0`
 
----
+## Set up Codex with one prompt
 
-## Giới thiệu
+Paste the following prompt into Codex. It clones this repository, configures the global MCP server, runs verification, and reports the outcome.
 
-memorize-mcp là một [Model Context Protocol (MCP)](https://modelcontextprotocol.io/) server nhỏ gọn, dùng để giúp AI/LLM lưu lại "memory" dưới dạng file JSON.
+```text
+Set up memorize-mcp for this local Codex host.
 
-Mục tiêu:
+1. Confirm that git, bun, and codex are available. If any are missing, stop and report the exact missing prerequisite.
+2. Clone https://github.com/congthien2003/memorize-mcp.git into a stable user-owned tools directory outside of any application workspace. If that clone already exists, update it without deleting uncommitted user changes.
+3. Change into the cloned repository and run `bun install`.
+4. Run these verification commands and stop on failure:
+   - `bunx tsc --noEmit`
+   - `bun test src/storage/session.test.ts`
+5. Run `codex mcp list`. If an MCP server named `memorize` already exists, remove only that server with `codex mcp remove memorize`. Do not change any other MCP server.
+6. Add the server using the repository's absolute `index.ts` path:
+   `codex mcp add memorize -- bun "ABSOLUTE_PATH_TO_MEMORIZE_MCP/index.ts"`
+   Do not set `cwd`, `MEMORIZE_MCP_PROJECT_ROOT`, or any fixed memory path. The server must inherit Codex's current workspace so it writes `.memorize/MEMORY.md` in the project being worked on.
+7. Run `codex mcp list` again and confirm that `memorize` is enabled.
+8. Report the clone path, verification results, MCP list result, and the reminder that Codex must start a new session or restart to load the new server.
 
-- Lưu lại bản tóm tắt hoặc ghi chú của từng phiên làm việc.
-- Lưu trữ ở dạng file JSON dễ đọc, dễ backup và dễ tái sử dụng.
-- Dùng chuẩn MCP nên có thể cắm vào nhiều client hỗ trợ MCP (Claude Desktop, VS Code extension, v.v.).
+Do not commit or modify unrelated repositories, configurations, or MCP servers.
+```
 
-Server này chạy qua stdin/stdout (stdio) nên phù hợp để được gọi bởi các MCP client.
+Codex CLI, the desktop app, and the IDE extension share MCP configuration on the same host. Start a new Codex session after setup, then use `/mcp` to inspect active MCP servers.
 
-## Yêu cầu môi trường
-
-- [Bun](https://bun.sh) >= 1.2.x
-- Node.js chỉ cần cho type definitions (dev), không bắt buộc để chạy.
-- TypeScript được khai báo là `peerDependency` (dùng cho phát triển).
-
-## Cài đặt & chạy local
-
-### 1. Cài dependencies
+## Run the server manually
 
 ```bash
 bun install
-```
-
-### 2. Chạy server bằng Bun
-
-```bash
 bun run index.ts
 ```
 
-Khi chạy trực tiếp, bạn sẽ thấy log dạng:
+The server uses stdio. Its working directory determines where `.memorize/MEMORY.md` is created.
 
-```text
-==================================================
-🚀 Memorize MCP Server v1.3.0 Started
-📁 Memory Directory: Z:\path\to\project\memorize
-⏰ Started at: 09/07/2026, 14:30:00
-==================================================
-```
+## Agent workflow
 
-## Tích hợp với MCP client (ví dụ Claude Desktop)
+1. Call `start_session` at the beginning of a new work session.
+2. Call `save_memorize` with `mode: "append"` for short progress updates.
+3. Call `save_memorize` with `mode: "replace"` for a compact handoff snapshot.
+4. Call `search_memorize` without a query to load all session context. Pass a query to retrieve only relevant sections.
 
-```jsonc
-{
-  "mcpServers": {
-    "memorize-mcp": {
-      "command": "bun",
-      "args": ["run", "index.ts"],
-    },
-  },
-}
-```
+Do not store passwords, tokens, API keys, or other secrets in session memory.
 
-## Available Tools
+## Tools
 
-Server cung cấp 3 tools:
+### `start_session`
 
----
-
-## Tool 1: `save_memorize`
-
-### Mô tả
-
-- **Chức năng**: Lưu bản tóm tắt nội dung công việc vào file local dưới dạng JSON.
-
-### Input schema
+Creates a new session by replacing `.memorize/MEMORY.md`.
 
 ```json
 {
-  "type": "object",
-  "properties": {
-    "filename": {
-      "type": "string",
-      "description": "Tên file (vd: summary_v1.json)"
-    },
-    "topic": {
-      "type": "string",
-      "description": "Chủ đề chính của phiên làm việc"
-    },
-    "content": { "type": "string", "description": "Nội dung tóm tắt chi tiết" },
-    "tags": {
-      "type": "array",
-      "items": { "type": "string" },
-      "description": "(Optional) Tags do agent tự sinh"
-    },
-    "decisions": {
-      "type": "array",
-      "items": {
-        "type": "object",
-        "properties": {
-          "question": { "type": "string" },
-          "answer": { "type": "string" },
-          "note": { "type": "string" },
-          "sectionId": { "type": "string" }
-        },
-        "required": ["question", "answer"]
-      }
-    },
-    "scope": {
-      "type": "object",
-      "properties": {
-        "included_files": { "type": "array", "items": { "type": "string" } },
-        "excluded_files": { "type": "array", "items": { "type": "string" } },
-        "excluded_reason": { "type": "string" }
-      },
-      "required": ["included_files", "excluded_files"]
-    }
-  },
-  "required": ["filename", "topic", "content"]
+  "goal": "Refactor the memory MCP"
 }
 ```
 
-### Quy trình hoạt động
+`goal` is optional. The new file includes a session ID and start time.
 
-1. MCP client gọi tool `save_memorize` với 3 tham số: `filename`, `topic`, `content`.
-2. Server tạo đường dẫn file: `filePath = path.join(memoryDir, filename)`.
-3. Ghi file JSON với nội dung dạng:
+### `save_memorize`
+
+Writes Markdown to the active session. Call `start_session` first.
 
 ```json
 {
-  "topic": "Tên chủ đề",
-  "timestamp": "2026-01-05T14:23:45.000Z",
-  "content": "Nội dung tóm tắt chi tiết..."
+  "content": "Removed the JSON index and moved to one Markdown file.",
+  "mode": "append"
 }
 ```
 
-4. Nếu thành công, server trả về:
+- `append` is the default. It adds a timestamped `## Update` section.
+- `replace` keeps the session header and replaces all earlier updates with a new `## Snapshot` section.
+- Writes are rejected when the file would exceed 64 KiB. Use `replace` with a shorter snapshot.
 
-```text
-✅ Đã lưu tóm tắt vào: /path/to/memorize/summary_v1.json
-```
+### `search_memorize`
 
-Nếu có lỗi, server trả về nội dung text với mô tả lỗi và `isError: true`.
-
----
-
-## Tool 2: `pull_agent_file`
-
-### Mô tả
-
-- **Chức năng**: Pull file `AGENT.md` từ source local của memorize-mcp về thư mục project của user.
-
-### Input schema
+Reads or searches `.memorize/MEMORY.md`.
 
 ```json
 {
-  "type": "object",
-  "properties": {
-    "targetDir": {
-      "type": "string",
-      "description": "(Optional) Thư mục project đích. Mặc định: thư mục đang gọi MCP."
-    },
-    "overwrite": {
-      "type": "boolean",
-      "description": "(Optional) Ghi đè AGENT.md nếu đã tồn tại. Mặc định: false"
-    }
-  },
-  "required": []
+  "query": "Markdown",
+  "limit": 3
 }
 ```
 
-### Quy trình hoạt động
-
-1. Client gọi tool `pull_agent_file`.
-2. Server xác định target directory (mặc định là thư mục đang chạy).
-3. Server đọc file `AGENT.md` từ source local.
-4. Nếu file đích đã tồn tại:
-   - `overwrite=true` → **Update** (ghi đè)
-   - ngược lại → **Skip**
-5. Nếu file đích chưa tồn tại → **Create**
-6. Trả về kết quả:
-
-```text
-✅ AGENT.md created.
-📁 Target: /path/to/project/AGENT.md
-```
-
----
-
-## Tool 3: `search_memorize`
-
-### Mô tả
-
-- **Chức năng**: Tìm kiếm memories theo từ khóa, tags, hoặc topic sử dụng `index.json`.
-
-### Input schema
-
-```json
-{
-  "type": "object",
-  "properties": {
-    "query": { "type": "string", "description": "(Optional) Từ khóa tìm kiếm" },
-    "tags": {
-      "type": "array",
-      "items": { "type": "string" },
-      "description": "(Optional) Lọc theo tags"
-    },
-    "limit": {
-      "type": "number",
-      "description": "(Optional) Số lượng tối đa. Mặc định: 10"
-    }
-  },
-  "required": []
-}
-```
-
----
-
-## Logging
-
-Server in log ra console mỗi khi:
-
-- Nhận request gọi tool (`save_memorize`, `pull_agent_file`, `search_memorize`).
-- Bắt đầu xử lý tool với thông tin parameters.
-
-Log này hữu ích để debug khi tích hợp với client MCP.
-
-## Tóm tắt
-
-- Đây là một MCP server nhỏ, chạy bằng Bun, dùng stdio.
-- Server cung cấp 3 tools: `save_memorize`, `pull_agent_file`, `search_memorize`.
-- Thư mục lưu mặc định: `./memorize/`.
-- Phù hợp để dùng như "bộ nhớ ngoài" cho các phiên làm việc với AI/LLM.
+- Without `query`, it returns the complete session memory for agent context.
+- With `query`, it searches case-insensitively within `##` sections and returns up to three sections by default.
+- When no active session or match exists, it returns an explanatory message instead of an error.

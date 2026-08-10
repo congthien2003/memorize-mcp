@@ -1,305 +1,157 @@
+import fs from "fs";
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import {
-  CallToolRequestSchema,
-  ListToolsRequestSchema,
+	CallToolRequestSchema,
+	ListToolsRequestSchema,
 } from "@modelcontextprotocol/sdk/types.js";
-import { saveMemory, searchMemories } from "./src/storage/index.js";
-import { pullAgentFile } from "./src/storage/agent.js";
 import { getMemoryDir, getProjectRoot } from "./src/dirs.js";
+import {
+	searchSessionMemory,
+	saveSessionMemory,
+	startSession,
+} from "./src/storage/index.js";
+import type { SaveMode } from "./src/storage/index.js";
 
 const server = new Server(
-  { name: "memorize-mcp-server", version: "1.4.0" },
-  { capabilities: { tools: {} } },
+	{ name: "memorize-mcp-server", version: "2.0.0" },
+	{ capabilities: { tools: {} } },
 );
 
-server.setRequestHandler(ListToolsRequestSchema, async () => {
-  return {
-    tools: [
-      {
-        name: "save_memorize",
-        description:
-          "Lưu bản tóm tắt nội dung công việc vào file local dưới dạng JSON",
-        inputSchema: {
-          type: "object",
-          properties: {
-            filename: {
-              type: "string",
-              description: "Tên file (vd: summary_v1.json)",
-            },
-            topic: {
-              type: "string",
-              description: "Chủ đề chính của phiên làm việc",
-            },
-            content: {
-              type: "string",
-              description: "Nội dung tóm tắt chi tiết",
-            },
-            tags: {
-              type: "array",
-              items: { type: "string" },
-              description:
-                "(Optional) Tags do agent tự sinh để dễ filter. Nếu không cung cấp sẽ tự động extract từ #hashtag trong content.",
-            },
-            decisions: {
-              type: "array",
-              items: {
-                type: "object",
-                properties: {
-                  question: {
-                    type: "string",
-                    description: "Câu hỏi / vấn đề được đặt ra",
-                  },
-                  answer: {
-                    type: "string",
-                    description: "Câu trả lời / quyết định của user",
-                  },
-                  note: {
-                    type: "string",
-                    description: "(Optional) Ghi chú thêm",
-                  },
-                  sectionId: {
-                    type: "string",
-                    description: "(Optional) ID của section liên quan",
-                  },
-                },
-                required: ["question", "answer"],
-              },
-              description:
-                "(Optional) Danh sách các quyết định/question-answer pairs",
-            },
-            scope: {
-              type: "object",
-              properties: {
-                included_files: {
-                  type: "array",
-                  items: { type: "string" },
-                  description: "Danh sách file đã sửa/tạo trong session này",
-                },
-                excluded_files: {
-                  type: "array",
-                  items: { type: "string" },
-                  description: "Danh sách file cố tình không động tới",
-                },
-                excluded_reason: {
-                  type: "string",
-                  description: "(Optional) Lý do không động tới excluded_files",
-                },
-              },
-              required: ["included_files", "excluded_files"],
-              description:
-                "(Optional) Phạm vi ảnh hưởng của session — file nào đụng tới, file nào không",
-            },
-          },
-          required: ["filename", "topic", "content"],
-        },
-      },
-      {
-        name: "pull_agent_file",
-        description:
-          "Pull file AGENT.md từ source local của memorize-mcp về thư mục project đích.",
-        inputSchema: {
-          type: "object",
-          properties: {
-            targetDir: {
-              type: "string",
-              description:
-                "(Optional) Thư mục project đích. Mặc định: thư mục đang gọi MCP.",
-            },
-            overwrite: {
-              type: "boolean",
-              description:
-                "(Optional) Ghi đè AGENT.md nếu đã tồn tại. Mặc định: false",
-            },
-          },
-          required: [],
-        },
-      },
-      {
-        name: "search_memorize",
-        description:
-          "Tìm kiếm memories theo từ khóa, tags, hoặc topic. Sử dụng index.json để tìm kiếm nhanh mà không cần đọc từng file.",
-        inputSchema: {
-          type: "object",
-          properties: {
-            query: {
-              type: "string",
-              description:
-                "(Optional) Từ khóa tìm kiếm — khớp với topic, filename, hoặc tags",
-            },
-            tags: {
-              type: "array",
-              items: { type: "string" },
-              description:
-                "(Optional) Lọc theo danh sách tags (tìm memory có ít nhất một tag trùng khớp)",
-            },
-            limit: {
-              type: "number",
-              description: "(Optional) Số lượng kết quả tối đa. Mặc định: 10",
-            },
-          },
-          required: [],
-        },
-      },
-    ],
-  };
-});
+function getArguments(value: unknown): Record<string, unknown> {
+	if (!value || typeof value !== "object" || Array.isArray(value)) {
+		return {};
+	}
+	return value as Record<string, unknown>;
+}
+
+function getOptionalString(
+	arguments_: Record<string, unknown>,
+	name: string,
+): string | undefined {
+	const value = arguments_[name];
+	if (value === undefined) return undefined;
+	if (typeof value !== "string") throw new Error(`${name} must be a string.`);
+	return value;
+}
+
+function getRequiredString(arguments_: Record<string, unknown>, name: string): string {
+	const value = getOptionalString(arguments_, name);
+	if (!value?.trim()) throw new Error(`${name} must be a non-empty string.`);
+	return value;
+}
+
+function text(message: string, isError = false) {
+	return {
+		content: [{ type: "text" as const, text: message }],
+		...(isError ? { isError: true } : {}),
+	};
+}
+
+server.setRequestHandler(ListToolsRequestSchema, async () => ({
+	tools: [
+		{
+			name: "start_session",
+			description:
+				"Bắt đầu phiên memory mới bằng cách thay thế .memorize/MEMORY.md hiện tại.",
+			inputSchema: {
+				type: "object",
+				properties: {
+					goal: {
+						type: "string",
+						description: "(Optional) Mục tiêu của phiên làm việc.",
+					},
+				},
+			},
+		},
+		{
+			name: "save_memorize",
+			description:
+				"Lưu update hoặc snapshot cô đọng vào memory của phiên hiện tại. Hãy gọi start_session trước.",
+			inputSchema: {
+				type: "object",
+				properties: {
+					content: {
+						type: "string",
+						description: "Nội dung Markdown không rỗng để lưu.",
+					},
+					mode: {
+						type: "string",
+						enum: ["append", "replace"],
+						description:
+							"append (mặc định) thêm update; replace giữ header và thay bằng snapshot mới.",
+					},
+				},
+				required: ["content"],
+			},
+		},
+		{
+			name: "search_memorize",
+			description:
+				"Đọc toàn bộ memory hiện tại khi không truyền query, hoặc tìm các section Markdown có query.",
+			inputSchema: {
+				type: "object",
+				properties: {
+					query: {
+						type: "string",
+						description: "(Optional) Từ khóa tìm không phân biệt hoa thường.",
+					},
+					limit: {
+						type: "number",
+						description: "(Optional) Số section tối đa, mặc định 3.",
+					},
+				},
+			},
+		},
+	],
+}));
 
 server.setRequestHandler(CallToolRequestSchema, async (request) => {
-  console.log(
-    `[${new Date().toISOString()}] Received tool request: ${
-      request.params.name
-    }`,
-  );
+	const arguments_ = getArguments(request.params.arguments);
+	const memoryDir = getMemoryDir();
 
-  if (request.params.name === "save_memorize") {
-    const { filename, topic, content, tags, decisions, scope } = request.params
-      .arguments as any;
-
-    console.log(`[${new Date().toISOString()}] Processing save_memorize:`, {
-      filename,
-      topic,
-      contentLength: content?.length || 0,
-      decisionsCount: decisions?.length || 0,
-      hasScope: !!scope,
-    });
-
-    try {
-      const result = await saveMemory({
-        filename,
-        topic,
-        content,
-        tags,
-        decisions,
-        scope,
-      });
-
-      return {
-        content: [
-          { type: "text", text: `✅ Đã lưu tóm tắt vào: ${result.localPath}` },
-        ],
-      };
-    } catch (error: any) {
-      console.error(
-        `[${new Date().toISOString()}] ❌ Error in save_memorize:`,
-        error,
-      );
-      return {
-        content: [
-          {
-            type: "text",
-            text: `❌ Lỗi: ${error.message || String(error)}`,
-          },
-        ],
-        isError: true,
-      };
-    }
-  }
-
-  if (request.params.name === "pull_agent_file") {
-    const { targetDir, overwrite } = request.params.arguments as any;
-
-    console.log(`[${new Date().toISOString()}] Processing pull_agent_file:`, {
-      targetDir: targetDir || "(default: CWD)",
-      overwrite: overwrite || false,
-    });
-
-    try {
-      const result = await pullAgentFile({
-        targetDir,
-        overwrite,
-      });
-
-      return {
-        content: [{ type: "text", text: result.message }],
-        isError: !result.success,
-      };
-    } catch (error: any) {
-      console.error(
-        `[${new Date().toISOString()}] ❌ Error in pull_agent_file:`,
-        error,
-      );
-      return {
-        content: [
-          {
-            type: "text",
-            text: `❌ Error: ${error.message || String(error)}`,
-          },
-        ],
-        isError: true,
-      };
-    }
-  }
-
-  if (request.params.name === "search_memorize") {
-    const { query, tags, limit } = request.params.arguments as any;
-    const memoryDir = getMemoryDir();
-
-    console.log(`[${new Date().toISOString()}] Processing search_memorize:`, {
-      query: query || "(none)",
-      tags: tags || [],
-      limit: limit || 10,
-    });
-
-    try {
-      const result = searchMemories({ query, tags, limit }, memoryDir);
-
-      let message = result.message;
-      if (result.results.length > 0) {
-        message += "\n\n📋 Results:";
-        for (const entry of result.results) {
-          message += `\n\n  📄 **${entry.filename}**`;
-          message += `\n     Topic: ${entry.topic}`;
-          if (entry.tags.length > 0) {
-            message += `\n     Tags: ${entry.tags.map((t) => `#${t}`).join(", ")}`;
-          }
-          message += `\n     Sections: ${entry.sectionCount}`;
-          message += `\n     Updated: ${entry.timestamp}`;
-        }
-        if (result.total > result.results.length) {
-          message += `\n\n  … and ${result.total - result.results.length} more. Use limit parameter to see more.`;
-        }
-      }
-
-      return {
-        content: [{ type: "text", text: message }],
-      };
-    } catch (error: any) {
-      console.error(
-        `[${new Date().toISOString()}] ❌ Error in search_memorize:`,
-        error,
-      );
-      return {
-        content: [
-          {
-            type: "text",
-            text: `❌ Lỗi: ${error.message || String(error)}`,
-          },
-        ],
-        isError: true,
-      };
-    }
-  }
-
-  console.warn(
-    `[${new Date().toISOString()}] ⚠️ Unknown tool requested: ${
-      request.params.name
-    }`,
-  );
-  throw new Error("Tool not found");
+	try {
+		switch (request.params.name) {
+			case "start_session": {
+				const filePath = startSession(memoryDir, getOptionalString(arguments_, "goal"));
+				return text(`Started session memory: ${filePath}`);
+			}
+			case "save_memorize": {
+				const filePath = saveSessionMemory(memoryDir, {
+					content: getRequiredString(arguments_, "content"),
+					mode: getOptionalString(arguments_, "mode") as SaveMode | undefined,
+				});
+				return text(`Saved session memory: ${filePath}`);
+			}
+			case "search_memorize": {
+				const limit = arguments_.limit;
+				if (limit !== undefined && typeof limit !== "number") {
+					throw new Error("limit must be a number.");
+				}
+				const result = searchSessionMemory(memoryDir, {
+					query: getOptionalString(arguments_, "query"),
+					limit,
+				});
+				return text(result.content);
+			}
+			default:
+				throw new Error("Tool not found");
+		}
+	} catch (error) {
+		const message = error instanceof Error ? error.message : String(error);
+		console.error(`[${new Date().toISOString()}] ${request.params.name} failed:`, error);
+		return text(`Error: ${message}`, true);
+	}
 });
 
-import { ensureDirectoryExists } from "./src/storage/local.js";
+const memoryDir = getMemoryDir();
+fs.mkdirSync(memoryDir, { recursive: true });
 
 const transport = new StdioServerTransport();
 await server.connect(transport);
 
-const memoryDir = getMemoryDir();
-ensureDirectoryExists(memoryDir);
-
 console.log("=".repeat(50));
-console.log("🚀 Memorize MCP Server v1.3.0 Started");
-console.log(`📂 Project Root: ${getProjectRoot()}`);
-console.log(`📁 Memory Dir:   ${memoryDir}`);
-console.log(`⏰ Started at: ${new Date().toLocaleString("vi-VN")}`);
+console.log("Memorize MCP Server v2.0.0 started");
+console.log(`Project root: ${getProjectRoot()}`);
+console.log(`Session memory: ${memoryDir}`);
 console.log("=".repeat(50));

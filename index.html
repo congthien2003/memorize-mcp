@@ -1,0 +1,165 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      content="memorize-mcp is a tiny MCP server for workspace-local session memory."
+    />
+    <title>memorize-mcp — Memory, where the work happens</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Fraunces:opsz,wght@9..144,600;9..144,700&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        --ink: #15211d;
+        --paper: #f4f1e8;
+        --rule: #c9c6ba;
+        --moss: #226447;
+        --signal: #d48b28;
+      }
+
+      html { scroll-behavior: smooth; }
+      body { background: var(--paper); color: var(--ink); font-family: "DM Mono", monospace; }
+      .display { font-family: Fraunces, Georgia, serif; }
+      .eyebrow { letter-spacing: .16em; }
+      .grid-paper { background: #f4f1e8; }
+      .reveal { animation: rise .65s both; }
+      .reveal:nth-child(2) { animation-delay: .08s; }
+      .reveal:nth-child(3) { animation-delay: .16s; }
+      @keyframes rise { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
+      @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } .reveal { animation: none; } }
+    </style>
+  </head>
+  <body>
+    <main class="overflow-hidden">
+      <section class="grid-paper border-b border-[var(--rule)]">
+        <div class="mx-auto max-w-6xl px-6 py-5 lg:px-8">
+          <nav class="flex items-center justify-between text-xs uppercase eyebrow" aria-label="Primary navigation">
+            <a href="#top" class="font-medium text-[var(--moss)]">memorize-mcp / v2.0.0</a>
+            <a class="border-b border-[var(--ink)] pb-1 hover:text-[var(--moss)]" href="https://github.com/congthien2003/memorize-mcp">GitHub ↗</a>
+          </nav>
+
+          <div id="top" class="grid min-h-[630px] items-end gap-12 py-20 lg:grid-cols-12 lg:py-24">
+            <div class="reveal lg:col-span-8">
+              <p class="mb-6 text-xs uppercase eyebrow text-[var(--moss)]">A workspace-local MCP server</p>
+              <h1 class="display max-w-4xl text-5xl leading-[.94] tracking-tight sm:text-7xl lg:text-8xl">
+                Memory, where<br />the work happens.
+              </h1>
+            </div>
+            <div class="reveal border-l border-[var(--ink)] pl-5 lg:col-span-4 lg:mb-2">
+              <p class="max-w-xs text-sm leading-6">
+                One Markdown file. One active session. The useful context your agent needs—kept beside the project, not in another system.
+              </p>
+              <a href="#install" class="mt-7 inline-block bg-[var(--ink)] px-4 py-3 text-xs font-medium uppercase tracking-wider text-[var(--paper)] hover:bg-[var(--moss)]">Install in one prompt ↓</a>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="mx-auto max-w-6xl px-6 py-16 lg:px-8 lg:py-24">
+        <div class="grid gap-10 border-y border-[var(--rule)] py-10 md:grid-cols-3">
+          <article class="reveal">
+            <p class="text-xs uppercase eyebrow text-[var(--moss)]">01 / Local by default</p>
+            <h2 class="display mt-4 text-3xl">One file, per workspace.</h2>
+            <p class="mt-4 text-sm leading-6">Context lives in <code class="bg-[#e2ded3] px-1">.memorize/MEMORY.md</code>, directly readable and easy to carry with the project.</p>
+          </article>
+          <article class="reveal border-t border-[var(--rule)] pt-8 md:border-l md:border-t-0 md:pl-8 md:pt-0">
+            <p class="text-xs uppercase eyebrow text-[var(--moss)]">02 / Intentional scope</p>
+            <h2 class="display mt-4 text-3xl">Current session only.</h2>
+            <p class="mt-4 text-sm leading-6">Starting a session replaces the last one. No history, cloud sync, database, tags, index, or legacy migration layer.</p>
+          </article>
+          <article class="reveal border-t border-[var(--rule)] pt-8 md:border-l md:border-t-0 md:pl-8 md:pt-0">
+            <p class="text-xs uppercase eyebrow text-[var(--moss)]">03 / Bounded &amp; searchable</p>
+            <h2 class="display mt-4 text-3xl">64 KiB. Direct search.</h2>
+            <p class="mt-4 text-sm leading-6">Case-insensitive section search keeps retrieval small. The cap keeps the memory useful instead of sprawling.</p>
+          </article>
+        </div>
+      </section>
+
+      <section id="tools" class="bg-[var(--ink)] py-16 text-[var(--paper)] lg:py-24">
+        <div class="mx-auto max-w-6xl px-6 lg:px-8">
+          <div class="mb-12 flex flex-col justify-between gap-4 md:flex-row md:items-end">
+            <div>
+              <p class="text-xs uppercase eyebrow text-[#9ac8b0]">The entire surface area</p>
+              <h2 class="display mt-3 text-4xl sm:text-5xl">Three tools. No detours.</h2>
+            </div>
+            <p class="max-w-sm text-sm leading-6 text-[#d6d1c5]">A deliberately small interface for agents that need to start, remember, and resume.</p>
+          </div>
+          <div class="overflow-x-auto border-t border-[#526159]">
+            <table class="w-full min-w-[680px] text-left text-sm">
+              <thead class="text-xs uppercase eyebrow text-[#9ac8b0]">
+                <tr><th class="py-4 font-normal">Tool</th><th class="py-4 font-normal">Does</th><th class="py-4 font-normal">Use it when</th></tr>
+              </thead>
+              <tbody class="divide-y divide-[#526159]">
+                <tr><td class="py-5 font-medium text-[#f3bd69]">start_session</td><td class="py-5 pr-8">Creates a fresh active session.</td><td class="py-5 text-[#d6d1c5]">Beginning a new work session.</td></tr>
+                <tr><td class="py-5 font-medium text-[#f3bd69]">save_memorize</td><td class="py-5 pr-8">Appends an update or replaces it with a compact snapshot.</td><td class="py-5 text-[#d6d1c5]">Recording progress or handing work off.</td></tr>
+                <tr><td class="py-5 font-medium text-[#f3bd69]">search_memorize</td><td class="py-5 pr-8">Loads all context or finds matching Markdown sections.</td><td class="py-5 text-[#d6d1c5]">Recovering the relevant part of a session.</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <section class="mx-auto max-w-6xl px-6 py-16 lg:px-8 lg:py-24">
+        <div class="grid gap-10 lg:grid-cols-12">
+          <div class="lg:col-span-4">
+            <p class="text-xs uppercase eyebrow text-[var(--moss)]">The agent rhythm</p>
+            <h2 class="display mt-3 text-4xl leading-tight">Start. Save. Resume.</h2>
+          </div>
+          <ol class="grid gap-5 lg:col-span-8 sm:grid-cols-3">
+            <li class="border-t-2 border-[var(--moss)] pt-4"><span class="text-xs text-[var(--moss)]">STEP 01</span><h3 class="display mt-3 text-2xl">Start</h3><p class="mt-2 text-sm leading-6">Call <code>start_session</code> with the goal.</p></li>
+            <li class="border-t-2 border-[var(--moss)] pt-4"><span class="text-xs text-[var(--moss)]">STEP 02</span><h3 class="display mt-3 text-2xl">Save</h3><p class="mt-2 text-sm leading-6">Append progress; replace with a concise handoff.</p></li>
+            <li class="border-t-2 border-[var(--moss)] pt-4"><span class="text-xs text-[var(--moss)]">STEP 03</span><h3 class="display mt-3 text-2xl">Search</h3><p class="mt-2 text-sm leading-6">Load all context or query just the section needed.</p></li>
+          </ol>
+        </div>
+      </section>
+
+      <section id="install" class="border-y border-[var(--rule)] bg-[#e8e3d6] py-16 lg:py-24">
+        <div class="mx-auto max-w-6xl px-6 lg:px-8">
+          <div class="grid gap-12 lg:grid-cols-12">
+            <div class="lg:col-span-4">
+              <p class="text-xs uppercase eyebrow text-[var(--moss)]">Setup</p>
+              <h2 class="display mt-3 text-4xl leading-tight">Give Codex one prompt.</h2>
+              <p class="mt-5 max-w-sm text-sm leading-6">It checks prerequisites, safely clones or updates the repo, verifies it, and registers the global MCP server.</p>
+            </div>
+            <div class="lg:col-span-8">
+              <div class="border border-[var(--ink)] bg-[var(--ink)] p-1">
+                <div class="border-b border-[#526159] px-4 py-3 text-xs text-[#d6d1c5]">CODEX PROMPT</div>
+                <pre id="prompt" class="max-h-[440px] overflow-auto whitespace-pre-wrap p-5 text-xs leading-6 text-[#f4f1e8]">Set up memorize-mcp for this local Codex host.
+
+1. Confirm that git, bun, and codex are available. If any are missing, stop and report the exact missing prerequisite.
+2. Clone https://github.com/congthien2003/memorize-mcp.git into a stable user-owned tools directory outside of any application workspace. If that clone already exists, update it without deleting uncommitted user changes.
+3. Change into the cloned repository and run `bun install`.
+4. Run these verification commands and stop on failure:
+   - `bunx tsc --noEmit`
+   - `bun test src/storage/session.test.ts`
+5. Run `codex mcp list`. If an MCP server named `memorize` already exists, remove only that server with `codex mcp remove memorize`.
+6. Add the server using the repository's absolute `index.ts` path:
+   `codex mcp add memorize -- bun "ABSOLUTE_PATH_TO_MEMORIZE_MCP/index.ts"`
+7. Run `codex mcp list` again and confirm that `memorize` is enabled.
+8. Report the clone path, verification results, MCP list result, and the reminder that Codex must start a new session or restart to load the new server.
+
+Do not commit or modify unrelated repositories, configurations, or MCP servers.</pre>
+              </div>
+              <p class="mt-4 text-xs leading-5 text-[#5e635d]">After setup, start a new Codex session and use <code>/mcp</code> to inspect active servers.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="mx-auto max-w-6xl px-6 py-16 lg:px-8 lg:py-20">
+        <div class="flex flex-col justify-between gap-8 border-l-4 border-[var(--signal)] pl-6 md:flex-row md:items-end">
+          <div><p class="text-xs uppercase eyebrow text-[var(--moss)]">A small boundary worth keeping</p><h2 class="display mt-3 max-w-2xl text-3xl">Do not place passwords, tokens, API keys, or secrets in session memory.</h2></div>
+          <a class="whitespace-nowrap border-b border-[var(--ink)] pb-1 text-sm hover:text-[var(--moss)]" href="https://github.com/congthien2003/memorize-mcp">Read the repository ↗</a>
+        </div>
+      </section>
+    </main>
+    <footer class="border-t border-[var(--rule)] px-6 py-5 text-center text-xs text-[#5e635d]">memorize-mcp · session memory for the workspace at hand</footer>
+  </body>
+</html>
