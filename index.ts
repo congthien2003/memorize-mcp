@@ -8,11 +8,14 @@ import {
 import { getMemoryDir, getProjectRoot } from "./src/dirs.js";
 import {
 	MAX_SESSION_BYTES,
+	MEMORY_SECTIONS,
 	searchSessionMemory,
 	saveSessionMemory,
 	startSession,
 } from "./src/storage/index.js";
 import type { SaveMode } from "./src/storage/index.js";
+
+let activeSessionId: string | undefined;
 
 const server = new Server(
 	{ name: "memorize-mcp-server", version: "2.0.1" },
@@ -54,8 +57,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
 		{
 			name: "start_session",
 			description:
-				"Bắt đầu phiên memory mới và thay thế vĩnh viễn .memorize/MEMORY.md hiện tại.",
-			annotations: { destructiveHint: true },
+				"Bắt đầu phiên mới trong workspace memory dùng chung; không xóa các session trước.",
 			inputSchema: {
 				type: "object",
 				properties: {
@@ -69,7 +71,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
 		{
 			name: "save_memorize",
 			description:
-				"Lưu update hoặc snapshot cô đọng vào memory của phiên hiện tại. Hãy gọi start_session trước.",
+				"Lưu update hoặc snapshot vào workspace memory. Có thể chỉ định section; hãy gọi start_session trước.",
 			inputSchema: {
 				type: "object",
 				properties: {
@@ -81,7 +83,16 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
 						type: "string",
 						enum: ["append", "replace"],
 						description:
-							"append (mặc định) thêm update; replace giữ header và thay bằng snapshot mới.",
+							"append (mặc định) thêm nội dung; replace thay section đã chọn hoặc toàn bộ snapshot nếu không chọn section.",
+					},
+					section: {
+						type: "string",
+						enum: [...MEMORY_SECTIONS].filter((section) => section !== "Sessions"),
+						description: "(Optional) Section có cấu trúc để append hoặc replace.",
+					},
+					sessionId: {
+						type: "string",
+						description: "(Optional) Session ID cần gắn vào structured save; mặc định là session hiện tại.",
 					},
 				},
 				required: ["content"],
@@ -102,6 +113,15 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
 						type: "number",
 						description: "(Optional) Số section tối đa, mặc định 3.",
 					},
+					section: {
+						type: "string",
+						enum: [...MEMORY_SECTIONS],
+						description: "(Optional) Chỉ tìm trong một section cụ thể.",
+					},
+					sessionId: {
+						type: "string",
+						description: "(Optional) Chỉ trả về nội dung có session ID này.",
+					},
 				},
 			},
 		},
@@ -115,13 +135,23 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 	try {
 		switch (request.params.name) {
 			case "start_session": {
-				const filePath = startSession(memoryDir, getOptionalString(arguments_, "goal"));
-				return text(`Started session memory: ${filePath}`);
+				const result = startSession(memoryDir, getOptionalString(arguments_, "goal"));
+				activeSessionId = result.sessionId;
+				return text(
+					`Started workspace memory session ${result.sessionId}: ${result.filePath}`,
+				);
 			}
 			case "save_memorize": {
+				const sessionId =
+					getOptionalString(arguments_, "sessionId")?.trim() || activeSessionId;
+				if (!sessionId) {
+					throw new Error("No active session. Call start_session before saving memory.");
+				}
 				const result = saveSessionMemory(memoryDir, {
 					content: getRequiredString(arguments_, "content"),
 					mode: getOptionalString(arguments_, "mode") as SaveMode | undefined,
+					section: getOptionalString(arguments_, "section"),
+					sessionId,
 				});
 				const usage = `${(result.bytes / 1024).toFixed(1)} KiB / ${MAX_SESSION_BYTES / 1024} KiB`;
 				const warning = result.nearLimit
@@ -137,6 +167,8 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 				const result = searchSessionMemory(memoryDir, {
 					query: getOptionalString(arguments_, "query"),
 					limit,
+					section: getOptionalString(arguments_, "section"),
+					sessionId: getOptionalString(arguments_, "sessionId"),
 				});
 				return text(result.content);
 			}

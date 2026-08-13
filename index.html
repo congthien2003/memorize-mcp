@@ -125,8 +125,8 @@
           <div class="grid gap-12 lg:grid-cols-12">
             <div class="lg:col-span-4">
               <p class="text-xs uppercase eyebrow text-[var(--moss)]">Setup</p>
-              <h2 class="display mt-3 text-4xl leading-tight">Give Codex one prompt.</h2>
-              <p class="mt-5 max-w-sm text-sm leading-6">It checks prerequisites, safely clones or updates the repo, verifies it, and registers the global MCP server.</p>
+              <h2 class="display mt-3 text-4xl leading-tight">Give Codex or Claude one prompt.</h2>
+              <p class="mt-5 max-w-sm text-sm leading-6">It checks prerequisites, safely clones or updates the repo, verifies it, and registers the MCP server.</p>
             </div>
             <div class="lg:col-span-8">
               <div class="border border-[var(--ink)] bg-[var(--ink)] p-1">
@@ -147,7 +147,26 @@
 
 Do not commit or modify unrelated repositories, configurations, or MCP servers.</pre>
               </div>
-              <p class="mt-4 text-xs leading-5 text-[#5e635d]">After setup, start a new Codex session and use <code>/mcp</code> to inspect active servers.</p>
+              <div class="mt-6 border border-[var(--ink)] bg-[var(--ink)] p-1">
+                <div class="border-b border-[#526159] px-4 py-3 text-xs text-[#d6d1c5]">CLAUDE CODE PROMPT</div>
+                <pre class="max-h-[440px] overflow-auto whitespace-pre-wrap p-5 text-xs leading-6 text-[#f4f1e8]">Set up memorize-mcp for this local Claude Code host.
+
+1. Confirm that git, bun, and claude are available. If any are missing, stop and report the exact missing prerequisite.
+2. Clone https://github.com/congthien2003/memorize-mcp.git into a stable user-owned tools directory outside of any application workspace. If that clone already exists, update it without deleting uncommitted user changes.
+3. Change into the cloned repository and run `bun install`.
+4. Run these verification commands and stop on failure:
+   - `bunx tsc --noEmit`
+   - `bun test src/storage/session.test.ts`
+5. Run `claude mcp list`. If an MCP server named `memorize` already exists, remove only that server with `claude mcp remove memorize`. Do not change any other MCP server.
+6. Add the server for all Claude Code projects using the repository's absolute `index.ts` path:
+   `claude mcp add --transport stdio --scope user memorize -- bun "ABSOLUTE_PATH_TO_MEMORIZE_MCP/index.ts"`
+   Do not set a fixed working directory or memory path. The server must inherit Claude Code's current workspace so it writes `.memorize/MEMORY.md` in the project being worked on.
+7. Run `claude mcp list` again and confirm that `memorize` is enabled.
+8. Report the clone path, verification results, MCP list result, and the reminder to reload Claude Code before using the new server.
+
+Do not commit or modify unrelated repositories, configurations, or MCP servers.</pre>
+              </div>
+              <p class="mt-4 text-xs leading-5 text-[#5e635d]">After setup, reload Codex or Claude Code and use <code>/mcp</code> to inspect active servers.</p>
             </div>
           </div>
         </div>

@@ -1,24 +1,24 @@
 {
-	"name": "memorize-mcp",
-	"version": "2.0.1",
-	"description": "A minimal Model Context Protocol (MCP) server for one workspace-local session memory.",
-	"module": "index.ts",
-	"type": "module",
-	"private": true,
-	"scripts": {
-		"dev": "bun run index.ts",
-		"start": "bun run index.ts",
-		"lint": "echo \"No linter configured yet\""
-	},
-	"devDependencies": {
-		"@types/bun": "^1.3.14",
-		"@types/node": "^25.9.5",
-		"typescript": "^6.0.3"
-	},
-	"peerDependencies": {
-		"typescript": "^5.9.3"
-	},
-	"dependencies": {
-		"@modelcontextprotocol/sdk": "^1.25.1"
-	}
+  "name": "memorize-mcp",
+  "version": "2.2.0",
+  "description": "A minimal Model Context Protocol (MCP) server for one workspace-local session memory.",
+  "module": "index.ts",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "dev": "bun run index.ts",
+    "start": "bun run index.ts",
+    "lint": "echo \"No linter configured yet\""
+  },
+  "devDependencies": {
+    "@types/bun": "^1.3.14",
+    "@types/node": "^25.9.5",
+    "typescript": "^6.0.3"
+  },
+  "peerDependencies": {
+    "typescript": "^5.9.3"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.25.1"
+  }
 }
