@@ -8,55 +8,37 @@ An MCP server that stores shared Markdown memory for all sessions in the current
 
 **Version:** `2.0.1`
 
-## Set up Codex with one prompt
+## Set up with one prompt
 
-Paste the following prompt into Codex. It clones this repository, configures the global MCP server, runs verification, and reports the outcome.
+Paste the following prompt into your current Codex or Claude Code session. It detects the host, configures only the matching MCP server, runs verification, and reports the outcome.
 
 ```text
-Set up memorize-mcp for this local Codex host.
+Set up memorize-mcp for this local agent host.
 
-1. Confirm that git, bun, and codex are available. If any are missing, stop and report the exact missing prerequisite.
-2. Clone https://github.com/congthien2003/memorize-mcp.git into a stable user-owned tools directory outside of any application workspace. If that clone already exists, update it without deleting uncommitted user changes.
-3. Change into the cloned repository and run `bun install`.
-4. Run these verification commands and stop on failure:
+1. Detect the current host. Do not configure both:
+   - If running in Codex, use the Codex commands below.
+   - If running in Claude Code, use the Claude Code commands below.
+   - If the host cannot be identified, stop and ask which one to configure.
+2. Confirm that git, bun, and the selected host CLI are available. If any are missing, stop and report the exact missing prerequisite.
+3. Clone https://github.com/congthien2003/memorize-mcp.git into a stable user-owned tools directory outside of any application workspace. If that clone already exists, update it without deleting uncommitted user changes.
+4. Change into the cloned repository and run `bun install`.
+5. Run these verification commands and stop on failure:
    - `bunx tsc --noEmit`
    - `bun test src/storage/session.test.ts`
-5. Run `codex mcp list`. If an MCP server named `memorize` already exists, remove only that server with `codex mcp remove memorize`. Do not change any other MCP server.
-6. Add the server using the repository's absolute `index.ts` path:
-   `codex mcp add memorize -- bun "ABSOLUTE_PATH_TO_MEMORIZE_MCP/index.ts"`
-   Do not set `cwd`, `MEMORIZE_MCP_PROJECT_ROOT`, or any fixed memory path. The server must inherit Codex's current workspace so it writes `.memorize/MEMORY.md` in the project being worked on.
-7. Run `codex mcp list` again and confirm that `memorize` is enabled.
-8. Report the clone path, verification results, MCP list result, and the reminder that Codex must start a new session or restart to load the new server.
+6. Configure only the selected host. First list the existing `memorize` server and remove only that server if it exists:
+   - Codex: `codex mcp list`, then `codex mcp remove memorize` if needed.
+   - Claude Code: `claude mcp list`, then `claude mcp remove memorize` if needed.
+7. Add the server using the repository's absolute `index.ts` path:
+   - Codex: `codex mcp add memorize -- bun "ABSOLUTE_PATH_TO_MEMORIZE_MCP/index.ts"`
+   - Claude Code: `claude mcp add --transport stdio --scope user memorize -- bun "ABSOLUTE_PATH_TO_MEMORIZE_MCP/index.ts"`
+   Do not set a fixed working directory, `MEMORIZE_MCP_PROJECT_ROOT`, or memory path. The server must inherit the current workspace so it writes `.memorize/MEMORY.md` in the project being worked on.
+8. Run the selected host's MCP list command again and confirm that `memorize` is enabled.
+9. Report the clone path, verification results, MCP list result, and the reminder to restart/reload the current host before using the new server.
 
 Do not commit or modify unrelated repositories, configurations, or MCP servers.
 ```
 
-Codex CLI, the desktop app, and the IDE extension share MCP configuration on the same host. Start a new Codex session after setup, then use `/mcp` to inspect active MCP servers.
-
-## Set up Claude Code with one prompt
-
-Paste the following prompt into Claude Code. It clones this repository, configures a user-scoped MCP server, runs verification, and reports the outcome.
-
-```text
-Set up memorize-mcp for this local Claude Code host.
-
-1. Confirm that git, bun, and claude are available. If any are missing, stop and report the exact missing prerequisite.
-2. Clone https://github.com/congthien2003/memorize-mcp.git into a stable user-owned tools directory outside of any application workspace. If that clone already exists, update it without deleting uncommitted user changes.
-3. Change into the cloned repository and run `bun install`.
-4. Run these verification commands and stop on failure:
-   - `bunx tsc --noEmit`
-   - `bun test src/storage/session.test.ts`
-5. Run `claude mcp list`. If an MCP server named `memorize` already exists, remove only that server with `claude mcp remove memorize`. Do not change any other MCP server.
-6. Add the server for all Claude Code projects using the repository's absolute `index.ts` path:
-   `claude mcp add --transport stdio --scope user memorize -- bun "ABSOLUTE_PATH_TO_MEMORIZE_MCP/index.ts"`
-   Do not set a fixed working directory or memory path. The server must inherit Claude Code's current workspace so it writes `.memorize/MEMORY.md` in the project being worked on.
-7. Run `claude mcp list` again and confirm that `memorize` is enabled.
-8. Report the clone path, verification results, MCP list result, and the reminder to reload Claude Code before using the new server.
-
-Do not commit or modify unrelated repositories, configurations, or MCP servers.
-```
-
-After setup, reload Claude Code and use `/mcp` to inspect active servers.
+After setup, restart or reload the current host and use `/mcp` to inspect active servers.
 
 ## Run the server manually
 

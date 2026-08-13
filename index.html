@@ -125,48 +125,40 @@
           <div class="grid gap-12 lg:grid-cols-12">
             <div class="lg:col-span-4">
               <p class="text-xs uppercase eyebrow text-[var(--moss)]">Setup</p>
-              <h2 class="display mt-3 text-4xl leading-tight">Give Codex or Claude one prompt.</h2>
-              <p class="mt-5 max-w-sm text-sm leading-6">It checks prerequisites, safely clones or updates the repo, verifies it, and registers the MCP server.</p>
+              <h2 class="display mt-3 text-4xl leading-tight">One prompt. Any host.</h2>
+              <p class="mt-5 max-w-sm text-sm leading-6">The prompt detects Codex or Claude Code, configures the matching MCP server, and leaves the other setup untouched.</p>
             </div>
             <div class="lg:col-span-8">
               <div class="border border-[var(--ink)] bg-[var(--ink)] p-1">
-                <div class="border-b border-[#526159] px-4 py-3 text-xs text-[#d6d1c5]">CODEX PROMPT</div>
-                <pre id="prompt" class="max-h-[440px] overflow-auto whitespace-pre-wrap p-5 text-xs leading-6 text-[#f4f1e8]">Set up memorize-mcp for this local Codex host.
+                <div class="flex items-center justify-between border-b border-[#526159] px-4 py-3 text-xs text-[#d6d1c5]">
+                  <span>SETUP PROMPT</span>
+                  <button id="copy-prompt" type="button" class="border border-[#9ac8b0] px-3 py-1 text-[10px] uppercase tracking-wider text-[#f4f1e8] hover:bg-[#526159]" aria-label="Copy setup prompt">Copy prompt</button>
+                </div>
+                <pre id="setup-prompt" class="max-h-[560px] overflow-auto whitespace-pre-wrap p-5 text-xs leading-6 text-[#f4f1e8]">Set up memorize-mcp for this local agent host.
 
-1. Confirm that git, bun, and codex are available. If any are missing, stop and report the exact missing prerequisite.
-2. Clone https://github.com/congthien2003/memorize-mcp.git into a stable user-owned tools directory outside of any application workspace. If that clone already exists, update it without deleting uncommitted user changes.
-3. Change into the cloned repository and run `bun install`.
-4. Run these verification commands and stop on failure:
+1. Detect the current host. Do not configure both:
+   - If running in Codex, use the Codex commands below.
+   - If running in Claude Code, use the Claude Code commands below.
+   - If the host cannot be identified, stop and ask which one to configure.
+2. Confirm that git, bun, and the selected host CLI are available. If any are missing, stop and report the exact missing prerequisite.
+3. Clone https://github.com/congthien2003/memorize-mcp.git into a stable user-owned tools directory outside of any application workspace. If that clone already exists, update it without deleting uncommitted user changes.
+4. Change into the cloned repository and run `bun install`.
+5. Run these verification commands and stop on failure:
    - `bunx tsc --noEmit`
    - `bun test src/storage/session.test.ts`
-5. Run `codex mcp list`. If an MCP server named `memorize` already exists, remove only that server with `codex mcp remove memorize`.
-6. Add the server using the repository's absolute `index.ts` path:
-   `codex mcp add memorize -- bun "ABSOLUTE_PATH_TO_MEMORIZE_MCP/index.ts"`
-7. Run `codex mcp list` again and confirm that `memorize` is enabled.
-8. Report the clone path, verification results, MCP list result, and the reminder that Codex must start a new session or restart to load the new server.
+6. Configure only the selected host. First list the existing `memorize` server and remove only that server if it exists:
+   - Codex: `codex mcp list`, then `codex mcp remove memorize` if needed.
+   - Claude Code: `claude mcp list`, then `claude mcp remove memorize` if needed.
+7. Add the server using the repository's absolute `index.ts` path:
+   - Codex: `codex mcp add memorize -- bun "ABSOLUTE_PATH_TO_MEMORIZE_MCP/index.ts"`
+   - Claude Code: `claude mcp add --transport stdio --scope user memorize -- bun "ABSOLUTE_PATH_TO_MEMORIZE_MCP/index.ts"`
+   Do not set a fixed working directory, `MEMORIZE_MCP_PROJECT_ROOT`, or memory path. The server must inherit the current workspace so it writes `.memorize/MEMORY.md` in the project being worked on.
+8. Run the selected host's MCP list command again and confirm that `memorize` is enabled.
+9. Report the clone path, verification results, MCP list result, and the reminder to restart/reload the current host before using the new server.
 
 Do not commit or modify unrelated repositories, configurations, or MCP servers.</pre>
               </div>
-              <div class="mt-6 border border-[var(--ink)] bg-[var(--ink)] p-1">
-                <div class="border-b border-[#526159] px-4 py-3 text-xs text-[#d6d1c5]">CLAUDE CODE PROMPT</div>
-                <pre class="max-h-[440px] overflow-auto whitespace-pre-wrap p-5 text-xs leading-6 text-[#f4f1e8]">Set up memorize-mcp for this local Claude Code host.
-
-1. Confirm that git, bun, and claude are available. If any are missing, stop and report the exact missing prerequisite.
-2. Clone https://github.com/congthien2003/memorize-mcp.git into a stable user-owned tools directory outside of any application workspace. If that clone already exists, update it without deleting uncommitted user changes.
-3. Change into the cloned repository and run `bun install`.
-4. Run these verification commands and stop on failure:
-   - `bunx tsc --noEmit`
-   - `bun test src/storage/session.test.ts`
-5. Run `claude mcp list`. If an MCP server named `memorize` already exists, remove only that server with `claude mcp remove memorize`. Do not change any other MCP server.
-6. Add the server for all Claude Code projects using the repository's absolute `index.ts` path:
-   `claude mcp add --transport stdio --scope user memorize -- bun "ABSOLUTE_PATH_TO_MEMORIZE_MCP/index.ts"`
-   Do not set a fixed working directory or memory path. The server must inherit Claude Code's current workspace so it writes `.memorize/MEMORY.md` in the project being worked on.
-7. Run `claude mcp list` again and confirm that `memorize` is enabled.
-8. Report the clone path, verification results, MCP list result, and the reminder to reload Claude Code before using the new server.
-
-Do not commit or modify unrelated repositories, configurations, or MCP servers.</pre>
-              </div>
-              <p class="mt-4 text-xs leading-5 text-[#5e635d]">After setup, reload Codex or Claude Code and use <code>/mcp</code> to inspect active servers.</p>
+              <p id="copy-status" class="mt-4 text-xs leading-5 text-[#5e635d]" aria-live="polite">After setup, restart or reload the current host and use <code>/mcp</code> to inspect active servers.</p>
             </div>
           </div>
         </div>
@@ -178,6 +170,47 @@ Do not commit or modify unrelated repositories, configurations, or MCP servers.<
           <a class="whitespace-nowrap border-b border-[var(--ink)] pb-1 text-sm hover:text-[var(--moss)]" href="https://github.com/congthien2003/memorize-mcp">Read the repository ↗</a>
         </div>
       </section>
+    <script>
+      const copyButton = document.getElementById("copy-prompt");
+      const setupPrompt = document.getElementById("setup-prompt");
+      const copyStatus = document.getElementById("copy-status");
+
+      async function copyText(text) {
+        if (navigator.clipboard) {
+          await navigator.clipboard.writeText(text);
+          return;
+        }
+
+        const textarea = document.createElement("textarea");
+        textarea.value = text;
+        textarea.style.position = "fixed";
+        textarea.style.opacity = "0";
+        document.body.append(textarea);
+        textarea.select();
+        const copied = document.execCommand("copy");
+        textarea.remove();
+        if (!copied) throw new Error("Copy failed");
+      }
+
+      copyButton?.addEventListener("click", async () => {
+        const text = setupPrompt?.textContent?.trim();
+        if (!text) return;
+
+        try {
+          await copyText(text);
+          copyButton.textContent = "Copied";
+          copyStatus.textContent = "Prompt copied. Paste it into your current host.";
+        } catch {
+          copyButton.textContent = "Copy failed";
+          copyStatus.textContent = "Copy failed. Select the prompt manually.";
+        }
+
+        window.setTimeout(() => {
+          copyButton.textContent = "Copy prompt";
+          copyStatus.textContent = "After setup, restart or reload the current host and use /mcp to inspect active servers.";
+        }, 1400);
+      });
+    </script>
     </main>
     <footer class="border-t border-[var(--rule)] px-6 py-5 text-center text-xs text-[#5e635d]">memorize-mcp · session memory for the workspace at hand</footer>
   </body>
