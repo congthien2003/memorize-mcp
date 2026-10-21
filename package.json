@@ -1,6 +1,6 @@
 {
   "name": "memorize-mcp",
-  "version": "2.2.0",
+  "version": "3.0.0",
   "description": "A minimal Model Context Protocol (MCP) server for one workspace-local session memory.",
   "module": "index.ts",
   "type": "module",
