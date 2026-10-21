@@ -1,5 +1,7 @@
 # memorize-mcp
 
+**Version:** `3.0.0`
+
 A workspace-local MCP memory server. Agents append meaningful progress to Markdown session journals and consolidate durable knowledge into a separate `MEMORY.md` with links to its sources.
 
 ```text

@@ -5,6 +5,23 @@ Tất cả thay đổi quan trọng của dự án này sẽ được ghi lại 
 Định dạng dựa theo [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 và version tuân theo [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.0.0] - 2026-10-21
+
+> **Breaking:** `save_memorize` yêu cầu `sessionId`, `entryId`, `title` và `content`; không còn hỗ trợ `mode` hoặc `section`. Dùng `update_memorize` để cập nhật memory tổng hợp.
+
+### Added
+
+- Journal Markdown riêng cho từng session, tiếp tục phiên sau restart và chống lưu trùng khi retry.
+- Tool `update_memorize` để tổng hợp kiến thức có nguồn tham chiếu và `read_memorize` để đọc phân trang UTF-8.
+- Migration memory cũ với backup nguyên trạng và hướng dẫn agent chủ động lưu thông tin đáng nhớ.
+- Prompt trong README để một sub-agent kiểm tra MCP độc lập.
+
+### Changed
+
+- Tách `.memorize/MEMORY.md` tổng hợp khỏi lịch sử trong `.memorize/sessions/`.
+- Tìm kiếm trả snippet có nguồn; kiểm tra revision khi cập nhật để tránh ghi đè thay đổi của phiên khác.
+- Bỏ giới hạn 64 KiB trên toàn bộ lịch sử; áp dụng giới hạn cho từng request và kết quả đọc/tìm kiếm.
+
 ## [2.0.1] - 2026-08-10
 
 ### Added

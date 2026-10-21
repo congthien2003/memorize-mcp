@@ -5,7 +5,7 @@ import { getMemoryDir, getProjectRoot } from "./src/dirs.js";
 import { callMemoryTool, MEMORY_INSTRUCTIONS, MEMORY_TOOLS } from "./src/tools.js";
 
 const server = new Server(
-	{ name: "memorize-mcp-server", version: "2.0.1" },
+	{ name: "memorize-mcp-server", version: "3.0.0" },
 	{ capabilities: { tools: {} }, instructions: MEMORY_INSTRUCTIONS },
 );
 
