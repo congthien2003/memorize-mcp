@@ -1,210 +1,49 @@
-import { afterEach, describe, expect, test } from "bun:test";
-import fs from "fs";
-import os from "os";
-import path from "path";
-import {
-	MAX_SESSION_BYTES,
-	SESSION_FILENAME,
-	searchSessionMemory,
-	saveSessionMemory,
-	startSession,
-} from "./session.js";
+import { afterEach, expect, test } from "bun:test";
+import fs from "node:fs/promises";
+import path from "node:path";
+import os from "node:os";
+import crypto from "node:crypto";
+import { startSession, saveSessionMemory } from "./session.js";
+import { parseSession } from "./format.js";
 
-const directories: string[] = [];
+const roots: string[] = [];
+async function root() { const dir = await fs.mkdtemp(path.join(os.tmpdir(), "memorize-session-")); roots.push(dir); return dir; }
+afterEach(async () => { for (const dir of roots.splice(0)) await fs.rm(dir, { recursive: true, force: true }); });
+const update = (sessionId: string, content = "Decision") => ({ sessionId, entryId: crypto.randomUUID(), title: "Progress", content });
 
-function createMemoryDir(): string {
-	const directory = fs.mkdtempSync(path.join(os.tmpdir(), "memorize-mcp-"));
-	directories.push(directory);
-	return directory;
-}
-
-afterEach(() => {
-	for (const directory of directories.splice(0)) {
-		fs.rmSync(directory, { recursive: true, force: true });
-	}
+test("separate sessions append and resume after process state is lost", async () => {
+	const dir = await root(); const first = await startSession(dir, { goal: "Research" });
+	await saveSessionMemory(dir, update(first.sessionId));
+	const before = await fs.readFile(path.join(dir, first.path));
+	const second = await startSession(dir, { goal: "Implement" });
+	expect(second.sessionId).not.toBe(first.sessionId);
+	expect((await startSession(dir, { sessionId: first.sessionId, goal: "Research" })).resumed).toBe(true);
+	expect(await fs.readFile(path.join(dir, first.path))).toEqual(before);
+	await expect(startSession(dir, { sessionId: first.sessionId, goal: "Changed" })).rejects.toMatchObject({ code: "INVALID_ARGUMENT" });
+	await expect(startSession(dir, { sessionId: crypto.randomUUID() })).rejects.toMatchObject({ code: "SESSION_NOT_FOUND" });
 });
-
-describe("workspace memory", () => {
-	test("startSession registers multiple sessions without deleting existing updates", () => {
-		const memoryDir = createMemoryDir();
-		const first = startSession(memoryDir, "First goal");
-		saveSessionMemory(memoryDir, {
-			content: "Old decision",
-			section: "Decisions",
-			sessionId: first.sessionId,
-		});
-
-		const second = startSession(memoryDir, "Second goal");
-		const result = searchSessionMemory(memoryDir, {});
-
-		expect(second.sessionId).not.toBe(first.sessionId);
-		expect(result.content).toContain("First goal");
-		expect(result.content).toContain("Second goal");
-		expect(result.content).toContain("Old decision");
-	});
-
-	test("replace without a section keeps registered sessions and removes legacy updates", () => {
-		const memoryDir = createMemoryDir();
-		startSession(memoryDir, "Ship memory");
-		saveSessionMemory(memoryDir, { content: "First update", mode: "append" });
-
-		saveSessionMemory(memoryDir, { content: "Concise handoff", mode: "replace" });
-
-		const result = searchSessionMemory(memoryDir, {});
-		expect(result.content).toContain("Ship memory");
-		expect(result.content).toContain("Concise handoff");
-		expect(result.content).not.toContain("First update");
-	});
-
-	test("section-scoped replace preserves other sections", () => {
-		const memoryDir = createMemoryDir();
-		const session = startSession(memoryDir);
-		saveSessionMemory(memoryDir, {
-			content: "Old decision",
-			section: "Decisions",
-			sessionId: session.sessionId,
-		});
-		saveSessionMemory(memoryDir, {
-			content: "Current implementation",
-			section: "Current State",
-			sessionId: session.sessionId,
-		});
-		saveSessionMemory(memoryDir, {
-			content: "New decision",
-			section: "Decisions",
-			mode: "replace",
-			sessionId: session.sessionId,
-		});
-
-		const decisions = searchSessionMemory(memoryDir, { section: "Decisions" });
-		const currentState = searchSessionMemory(memoryDir, { section: "Current State" });
-		expect(decisions.content).toContain("New decision");
-		expect(decisions.content).not.toContain("Old decision");
-		expect(currentState.content).toContain("Current implementation");
-	});
-
-	test("search filters nested entries by section and session ID", () => {
-		const memoryDir = createMemoryDir();
-		const first = startSession(memoryDir, "First");
-		saveSessionMemory(memoryDir, {
-			content: "First session decision",
-			section: "Decisions",
-			sessionId: first.sessionId,
-		});
-		const second = startSession(memoryDir, "Second");
-		saveSessionMemory(memoryDir, {
-			content: "Second session decision",
-			section: "Decisions",
-			sessionId: second.sessionId,
-		});
-
-		const result = searchSessionMemory(memoryDir, {
-			section: "Decisions",
-			sessionId: second.sessionId,
-		});
-
-		expect(result.matches).toBe(1);
-		expect(result.content).toContain("Second session decision");
-		expect(result.content).not.toContain("First session decision");
-	});
-
-	test("search requires every query term and returns newest matches first", () => {
-		const memoryDir = createMemoryDir();
-		startSession(memoryDir);
-		saveSessionMemory(memoryDir, {
-			content: "Legacy authentication uses an OTP challenge.",
-			mode: "append",
-		});
-		saveSessionMemory(memoryDir, {
-			content: "The authentication dashboard remains unchanged.",
-			mode: "append",
-		});
-		saveSessionMemory(memoryDir, {
-			content: "The current OTP flow completes authentication.",
-			mode: "append",
-		});
-
-		const result = searchSessionMemory(memoryDir, {
-			query: "authentication otp",
-			limit: 2,
-		});
-
-		expect(result.matches).toBe(2);
-		expect(result.content.indexOf("current OTP")).toBeLessThan(
-			result.content.indexOf("Legacy authentication"),
-		);
-		expect(result.content).not.toContain("dashboard");
-	});
-
-	test("starting a session migrates the legacy file without losing content", () => {
-		const memoryDir = createMemoryDir();
-		const filePath = path.join(memoryDir, SESSION_FILENAME);
-		fs.writeFileSync(
-			filePath,
-			[
-				"# Session Memory",
-				"",
-				"- Session ID: legacy",
-				"- Started: 2026-08-10T00:00:00.000Z",
-				"---",
-				"",
-				"## Snapshot — 2026-08-10T00:00:00.000Z",
-				"",
-				"Legacy snapshot",
-				"",
-				"## Update — 2026-08-10T00:01:00.000Z",
-				"",
-				"Legacy update",
-			].join("\n"),
-		);
-
-		startSession(memoryDir, "New goal");
-
-		const result = searchSessionMemory(memoryDir, {});
-		expect(result.content).toContain("# Workspace Memory");
-		expect(result.content).toContain("Legacy snapshot");
-		expect(result.content).toContain("Legacy update");
-		expect(result.content).toContain("New goal");
-		expect(result.content).toContain("## Decisions");
-	});
-
-	test("a fresh lock prevents a silent concurrent overwrite", () => {
-		const memoryDir = createMemoryDir();
-		startSession(memoryDir);
-		const lockPath = path.join(memoryDir, `${SESSION_FILENAME}.lock`);
-		fs.writeFileSync(lockPath, `${process.pid}\n${Date.now()}`);
-
-		expect(() =>
-			saveSessionMemory(memoryDir, {
-				content: "Blocked update",
-				section: "Current State",
-			}),
-		).toThrow("Memory is being updated");
-
-		fs.unlinkSync(lockPath);
-		const result = saveSessionMemory(memoryDir, {
-			content: "Allowed update",
-			section: "Current State",
-		});
-		expect(result.bytes).toBeGreaterThan(0);
-	});
-
-	test("save reports the 80 percent capacity boundary", () => {
-		const memoryDir = createMemoryDir();
-		startSession(memoryDir);
-
-		const belowLimit = saveSessionMemory(memoryDir, {
-			content: "Concise snapshot",
-			mode: "replace",
-		});
-		expect(belowLimit.nearLimit).toBe(false);
-
-		const result = saveSessionMemory(memoryDir, {
-			content: "x".repeat(Math.ceil(MAX_SESSION_BYTES * 0.8)),
-			mode: "replace",
-		});
-
-		expect(result.bytes).toBeGreaterThanOrEqual(MAX_SESSION_BYTES * 0.8);
-		expect(result.nearLimit).toBe(true);
-	});
+test("same entry retry is idempotent and different payload conflicts", async () => {
+	const dir = await root(); const session = await startSession(dir);
+	const options = update(session.sessionId, "\uFEFFTiếng Việt 🙂\r\n");
+	const saved = await saveSessionMemory(dir, options);
+	const before = await fs.readFile(path.join(dir, session.path));
+	const again = await saveSessionMemory(dir, options);
+	expect(again.deduplicated).toBe(true); expect(again.timestamp).toBe(saved.timestamp);
+	expect(await fs.readFile(path.join(dir, session.path))).toEqual(before);
+	await expect(saveSessionMemory(dir, { ...options, content: "different" })).rejects.toMatchObject({ code: "ENTRY_CONFLICT" });
+});
+test("concurrent appends can be retried without losses and sessions exceed 64 KiB", async () => {
+	const dir = await root(); const session = await startSession(dir);
+	const options = [update(session.sessionId, "x".repeat(40000)), update(session.sessionId, "y".repeat(40000))];
+	const outcomes = await Promise.allSettled(options.map(option => saveSessionMemory(dir, option)));
+	for (let index = 0; index < outcomes.length; index++) {
+		const outcome = outcomes[index]!;
+		if (outcome.status === "rejected") { expect(outcome.reason.code).toBe("MEMORY_BUSY"); await saveSessionMemory(dir, options[index]!); }
+	}
+	const bytes = await fs.readFile(path.join(dir, session.path));
+	expect(bytes.length).toBeGreaterThan(65536); expect(parseSession(bytes).entries).toHaveLength(2);
+	await expect(saveSessionMemory(dir, update(session.sessionId, "z".repeat(65537)))).rejects.toMatchObject({ code: "PAYLOAD_TOO_LARGE" });
+	await expect(saveSessionMemory(dir, update(session.sessionId, " \n"))).rejects.toMatchObject({ code: "INVALID_ARGUMENT" });
+	await expect(saveSessionMemory(dir, { ...update(session.sessionId), title: "a\nb" })).rejects.toThrow();
+	await expect(saveSessionMemory(dir, update(session.sessionId, "broken\uD800"))).rejects.toMatchObject({ code: "INVALID_ARGUMENT" });
 });
